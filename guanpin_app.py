@@ -5,7 +5,22 @@ import plotly.graph_objects as go
 import sqlite3
 from datetime import datetime, timedelta
 
-st.set_page_config(layout="wide", page_title="管制品追踪系统")
+st.set_page_config(layout="wide", page_title="管制品追踪数据看板")
+
+# 深色主题样式
+st.markdown("""
+<style>
+    .stApp { background: #0f172a; }
+    .stMetric { background: #1e293b; border-radius: 12px; padding: 20px; border: 1px solid #334155; }
+    .stMetric label { color: #94a3b8; }
+    .stMetric value { color: #f1f5f9; }
+    h1, h2, h3 { color: #f1f5f9 !important; }
+    .stMarkdown p { color: #94a3b8; }
+    .stAlert { background: #1e293b; border: 1px solid #334155; }
+    .stAlert p { color: #f1f5f9; }
+    div[data-testid="stDataFrame"] { background: #1e293b; border-radius: 8px; }
+</style>
+""", unsafe_allow_html=True)
 
 @st.cache_data
 def load_data():
@@ -15,8 +30,9 @@ def load_data():
     
     today = datetime.now().strftime('%Y-%m-%d')
     
+    # Flask API 逻辑: pending_qty = total_qty_all (所有记录的总数量)
     cursor.execute('SELECT COALESCE(SUM(quantity), 0) FROM guankong_records')
-    total_qty = cursor.fetchone()[0]
+    total_qty_all = cursor.fetchone()[0]
     
     cursor.execute('SELECT COUNT(*) FROM guankong_records')
     pending_count = cursor.fetchone()[0]
@@ -27,9 +43,6 @@ def load_data():
     cursor.execute('SELECT COUNT(*) FROM guankong_records WHERE status != "已完成" AND deadline < ?', (today,))
     overdue_count = cursor.fetchone()[0]
     
-    cursor.execute('SELECT COALESCE(SUM(quantity), 0) FROM guankong_records')
-    total_qty_all = cursor.fetchone()[0]
-    
     cursor.execute('SELECT COALESCE(SUM(quantity), 0) FROM guankong_records WHERE status = "已完成"')
     completed_qty = cursor.fetchone()[0]
     
@@ -38,6 +51,14 @@ def load_data():
     
     completion_rate = round((completed_qty / total_qty_all) * 100) if total_qty_all > 0 else 0
     
+    # 今日新增
+    cursor.execute('SELECT COUNT(*) FROM guankong_records WHERE DATE(production_date) = ?', (today,))
+    today_added = cursor.fetchone()[0]
+    
+    cursor.execute('SELECT COUNT(*) FROM guankong_records WHERE DATE(production_date) = DATE("now", "-1 day")')
+    yesterday_added = cursor.fetchone()[0]
+    
+    # 部门统计 - 与Flask完全一致
     cursor.execute('''
         SELECT COALESCE(handler_name, handle_dept) as dept,
                COUNT(*) as count,
@@ -68,6 +89,17 @@ def load_data():
             'normal': row['normal']
         })
     
+    # 部门百分比
+    dept_percentages = {}
+    if uncompleted_qty > 0:
+        cursor.execute('SELECT COALESCE(handler_name, handle_dept) as dept, COALESCE(SUM(quantity), 0) FROM guankong_records WHERE status = "待处理" GROUP BY COALESCE(handler_name, handle_dept)')
+        pending_dept = {}
+        for row in cursor.fetchall():
+            pending_dept[row['dept']] = row[1]
+        for dept in pending_dept:
+            dept_percentages[dept] = round((pending_dept.get(dept, 0) / uncompleted_qty) * 100)
+    
+    # 管制原因分布
     cursor.execute('''
         SELECT control_reason, COUNT(*) as count, COALESCE(SUM(quantity), 0) as quantity
         FROM guankong_records
@@ -77,6 +109,7 @@ def load_data():
     ''')
     reason_distribution = [dict(row) for row in cursor.fetchall()]
     
+    # 近7天处理率趋势 - 与Flask完全一致
     last_7_days = []
     for i in range(6, -1, -1):
         date = (datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d')
@@ -104,6 +137,16 @@ def load_data():
             'rate': rate
         })
     
+    # 严重超期走马灯数据
+    cursor.execute('''
+        SELECT * FROM guankong_records 
+        WHERE status != "已完成" 
+        AND (julianday('now') - julianday(production_date)) > 30
+        ORDER BY (julianday('now') - julianday(production_date)) DESC
+    ''')
+    critical_overdue_records = [dict(row) for row in cursor.fetchall()]
+    
+    # 待处理列表
     cursor.execute('''
         SELECT * FROM guankong_records 
         WHERE status != "已完成"
@@ -112,6 +155,7 @@ def load_data():
     ''')
     product_records = [dict(row) for row in cursor.fetchall()]
     
+    # 月度统计
     cursor.execute('''
         SELECT strftime('%Y-%m', production_date) as month,
                COALESCE(handler_name, handle_dept) as dept,
@@ -123,65 +167,109 @@ def load_data():
     ''')
     monthly_raw = [dict(row) for row in cursor.fetchall()]
     
+    # 产品类别处理统计
+    cursor.execute('''
+        SELECT 
+            CASE 
+                WHEN product_name LIKE '成品-PET%' THEN SUBSTR(product_name, 5, INSTR(SUBSTR(product_name, 5), '入') + 4)
+                ELSE product_name 
+            END as product_category,
+            COALESCE(SUM(CASE WHEN status = "待处理" THEN quantity ELSE 0 END), 0) as pending_qty,
+            COALESCE(SUM(handled_quantity), 0) as handled_qty,
+            COALESCE(SUM(quantity), 0) as total_qty,
+            COUNT(*) as record_count
+        FROM guankong_records
+        GROUP BY product_category
+        ORDER BY pending_qty DESC
+        LIMIT 10
+    ''')
+    product_stats = []
+    for row in cursor.fetchall():
+        handled = row['handled_qty'] if row['handled_qty'] else 0
+        total = row['total_qty'] if row['total_qty'] else 0
+        product_stats.append({
+            'name': row['product_category'],
+            'pending_qty': row['pending_qty'],
+            'handled_qty': handled,
+            'total_qty': total,
+            'handled_percent': round((handled / total) * 100) if total > 0 else 0
+        })
+    
     conn.close()
     
     return {
         'dept_stats': dept_stats,
         'pending_count': pending_count,
-        'pending_qty': uncompleted_qty,
+        'pending_qty': total_qty_all,  # 与Flask一致: 返回总数量
+        'uncompleted_qty': uncompleted_qty,
         'overdue_qty': overdue_qty,
         'overdue_count': overdue_count,
         'total_qty': total_qty_all,
         'completed_qty': completed_qty,
         'completion_rate': completion_rate,
+        'today_added': today_added,
+        'yesterday_added': yesterday_added,
+        'dept_percentages': dept_percentages,
         'reason_distribution': reason_distribution,
         'last_7_days': last_7_days,
+        'critical_overdue_records': critical_overdue_records,
         'product_records': product_records,
-        'monthly_raw': monthly_raw
+        'monthly_raw': monthly_raw,
+        'product_stats': product_stats
     }
-
-st.title('📊 管制品追踪系统')
-st.markdown('<p style="color: #666; font-size: 14px;">数据更新时间：' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + '</p>', unsafe_allow_html=True)
 
 data = load_data()
 
+# 标题
+st.title('📊 管制品追踪数据看板')
+dept_labels = ' · '.join([f'{k} {v}%' for k, v in data['dept_percentages'].items() if v > 0]) or '无数据'
+st.markdown(f'<p style="color: #64748b; font-size: 14px;">数据更新时间：{datetime.now().strftime("%Y-%m-%d %H:%M:%S")} | 📦 共 {data["pending_count"]} 条记录 | {dept_labels}</p>', unsafe_allow_html=True)
+
+# 4个指标卡片 - 与Flask一致
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    st.metric("待处理数量", f"{data['pending_qty']:,}", f"{data['pending_count']} 条记录")
+    st.metric("📦 待处理总数（箱）", f"{data['pending_qty']:,}", f"共 {data['pending_count']} 条记录")
 
 with col2:
     overdue_rate = (data['overdue_qty'] / data['pending_qty'] * 100) if data['pending_qty'] > 0 else 0
-    st.metric("超期数量", f"{data['overdue_qty']:,}", f"超期率 {overdue_rate:.1f}%")
+    critical_qty = sum(d.get('critical_overdue', 0) for d in data['dept_stats'])
+    st.metric("🔴 超期项目数（箱）", f"{data['overdue_qty']:,}", f"超期率 {overdue_rate:.1f}% | 超15天: {critical_qty:,}箱")
 
 with col3:
-    st.metric("总记录数", f"{data['total_qty']:,}", f"已完成 {data['completed_qty']:,}")
+    info_text = f"今日新增 {data['today_added']}条" if data['today_added'] > 0 else f"今日暂无，昨日 {data['yesterday_added']}条"
+    st.metric("🆕 今日新增（条）", f"{data['today_added']}", info_text)
 
 with col4:
-    st.metric("处理率", f"{data['completion_rate']}%", delta="目标 ≥85%")
+    st.metric("✅ 处理率", f"{data['completion_rate']}%", "目标 ≥85%")
 
-critical_data = [p for p in data['product_records'] 
-                 if (datetime.now() - datetime.strptime(p['production_date'], '%Y-%m-%d')).days > 30 
-                 and p['status'] != '已完成']
+# 严重超期走马灯
+if data['critical_overdue_records']:
+    st.error(f"🔥 严重超期警示（超期30天以上未处理）：共 {len(data['critical_overdue_records'])} 项")
+    marquee_items = []
+    for item in data['critical_overdue_records'][:10]:
+        days = (datetime.now() - datetime.strptime(item['production_date'], '%Y-%m-%d')).days
+        handler = item.get('handler_name', item.get('handle_dept', '未分配'))
+        marquee_items.append(f"【{item['product_name'][:20]}】超期{days}天 | {item['quantity']}箱 | 处理人: {handler}")
+    st.markdown(
+        f'<div style="background: #7f1d1d; padding: 10px; border-radius: 8px; overflow: hidden; white-space: nowrap;">'
+        + ' ⚡ '.join(marquee_items) + 
+        '</div>', unsafe_allow_html=True
+    )
 
-if critical_data:
-    st.warning(f"🔥 严重超期警示（超期30天以上）：共 {len(critical_data)} 项")
-    with st.expander("查看严重超期明细"):
-        for item in critical_data[:5]:
-            days = (datetime.now() - datetime.strptime(item['production_date'], '%Y-%m-%d')).days
-            st.write(f"**{item['product_name'][:30]}** | 超期 {days} 天 | 数量: {item['quantity']} 箱 | 处理人: {item.get('handler_name', item.get('handle_dept', '未分配'))}")
-
+# 图表区域 - 第一行: 各部门待处理 + 近7天趋势
+st.markdown("---")
 col_chart1, col_chart2 = st.columns(2)
 
 with col_chart1:
-    st.subheader('📊 各处理人待处理数量统计')
+    st.subheader('📊 各部门待处理数量统计')
     dept_df = pd.DataFrame(data['dept_stats'])
     if not dept_df.empty:
         fig_dept = go.Figure()
         colors = {'critical_overdue': '#ef4444', 'normal_overdue': '#f59e0b', 
                   'upcoming_due': '#fbbf24', 'normal': '#10b981'}
-        labels = {'critical_overdue': '严重超期', 'normal_overdue': '一般超期', 
-                 'upcoming_due': '即将到期', 'normal': '正常'}
+        labels = {'critical_overdue': '严重超期(>15天)', 'normal_overdue': '一般超期(7-15天)', 
+                 'upcoming_due': '即将到期(5-7天)', 'normal': '正常(<5天)'}
         
         for key in ['critical_overdue', 'normal_overdue', 'upcoming_due', 'normal']:
             fig_dept.add_trace(go.Bar(
@@ -198,7 +286,10 @@ with col_chart1:
             xaxis_title='处理人',
             yaxis_title='数量（箱）',
             legend=dict(orientation='h', yanchor='bottom', y=1.02),
-            template='plotly_white'
+            template='plotly_dark',
+            paper_bgcolor='#1e293b',
+            plot_bgcolor='#0f172a',
+            font=dict(color='#94a3b8')
         )
         st.plotly_chart(fig_dept, use_container_width=True)
 
@@ -207,6 +298,15 @@ with col_chart2:
     trend_df = pd.DataFrame(data['last_7_days'])
     if not trend_df.empty:
         fig_trend = go.Figure()
+        fig_trend.add_trace(go.Bar(
+            x=trend_df['date'].apply(lambda x: x[5:]),
+            y=trend_df['completed_qty'],
+            name='已处理箱数',
+            marker_color='#3b82f6',
+            yaxis='y2',
+            opacity=0.5,
+            hovertemplate='%{x}<br>已处理: %{y} 箱<extra></extra>'
+        ))
         fig_trend.add_trace(go.Scatter(
             x=trend_df['date'].apply(lambda x: x[5:]),
             y=trend_df['rate'],
@@ -220,47 +320,93 @@ with col_chart2:
         fig_trend.update_layout(
             height=400,
             xaxis_title='日期',
-            yaxis_title='处理率 (%)',
-            yaxis=dict(range=[0, 100]),
-            template='plotly_white'
+            yaxis=dict(title='处理率 (%)', range=[0, 100]),
+            yaxis2=dict(title='已处理箱数', overlaying='y', side='right', showgrid=False),
+            legend=dict(orientation='h', yanchor='bottom', y=1.02),
+            template='plotly_dark',
+            paper_bgcolor='#1e293b',
+            plot_bgcolor='#0f172a',
+            font=dict(color='#94a3b8')
         )
         st.plotly_chart(fig_trend, use_container_width=True)
 
-st.subheader('📅 月度管制品数量统计')
-monthly_raw = data['monthly_raw']
-if monthly_raw:
-    monthly_df = pd.DataFrame(monthly_raw)
-    pivot_df = monthly_df.pivot_table(index='month', columns='dept', values='quantity', fill_value=0)
-    
-    fig_monthly = px.bar(
-        pivot_df,
-        height=400,
-        xaxis_title='月份',
-        yaxis_title='数量（箱）',
-        template='plotly_white'
-    )
-    fig_monthly.update_layout(
+# 第二行: 月度统计 + 管制原因占比
+col_chart3, col_chart4 = st.columns(2)
+
+with col_chart3:
+    st.subheader('📦 月度管制品数量统计')
+    monthly_raw = data['monthly_raw']
+    if monthly_raw:
+        monthly_df = pd.DataFrame(monthly_raw)
+        pivot_df = monthly_df.pivot_table(index='month', columns='dept', values='quantity', fill_value=0)
+        
+        fig_monthly = px.bar(pivot_df, height=400, template='plotly_dark')
+        fig_monthly.update_layout(
+            barmode='stack',
+            xaxis_title='月份',
+            yaxis_title='数量（箱）',
+            legend=dict(orientation='h', yanchor='bottom', y=1.02),
+            paper_bgcolor='#1e293b',
+            plot_bgcolor='#0f172a',
+            font=dict(color='#94a3b8')
+        )
+        st.plotly_chart(fig_monthly, use_container_width=True)
+
+with col_chart4:
+    st.subheader('📋 管制原因分类占比')
+    reason_df = pd.DataFrame(data['reason_distribution'])
+    if not reason_df.empty:
+        fig_reason = go.Figure(data=[go.Pie(
+            labels=reason_df['control_reason'],
+            values=reason_df['quantity'],
+            hole=0.4
+        )])
+        fig_reason.update_layout(
+            height=400, 
+            template='plotly_dark',
+            paper_bgcolor='#1e293b',
+            font=dict(color='#94a3b8'),
+            legend=dict(orientation='h', yanchor='bottom', y=-0.2)
+        )
+        st.plotly_chart(fig_reason, use_container_width=True)
+
+# 第三行: 产品类别处理统计
+st.subheader('🏭 产品类别处理统计')
+product_stats_df = pd.DataFrame(data['product_stats'])
+if not product_stats_df.empty:
+    fig_product = go.Figure()
+    fig_product.add_trace(go.Bar(
+        name='待处理',
+        x=product_stats_df['name'],
+        y=product_stats_df['pending_qty'],
+        marker_color='#ef4444'
+    ))
+    fig_product.add_trace(go.Bar(
+        name='已处理',
+        x=product_stats_df['name'],
+        y=product_stats_df['handled_qty'],
+        marker_color='#10b981'
+    ))
+    fig_product.update_layout(
         barmode='stack',
-        legend=dict(orientation='h', yanchor='bottom', y=1.02)
+        height=400,
+        xaxis_title='产品类别',
+        yaxis_title='数量（箱）',
+        legend=dict(orientation='h', yanchor='bottom', y=1.02),
+        template='plotly_dark',
+        paper_bgcolor='#1e293b',
+        plot_bgcolor='#0f172a',
+        font=dict(color='#94a3b8')
     )
-    st.plotly_chart(fig_monthly, use_container_width=True)
+    st.plotly_chart(fig_product, use_container_width=True)
 
-st.subheader('📋 管制原因分布')
-reason_df = pd.DataFrame(data['reason_distribution'])
-if not reason_df.empty:
-    fig_reason = go.Figure(data=[go.Pie(
-        labels=reason_df['control_reason'],
-        values=reason_df['quantity'],
-        hole=0.4
-    )])
-    fig_reason.update_layout(height=400, template='plotly_white')
-    st.plotly_chart(fig_reason, use_container_width=True)
-
+# 待处理管制品列表
 st.subheader('📦 待处理管制品列表')
 product_df = pd.DataFrame(data['product_records'])
 if not product_df.empty:
     display_cols = ['product_name', 'control_reason', 'quantity', 'handler_name', 'status', 'deadline']
-    st.dataframe(product_df[display_cols].head(20), use_container_width=True, hide_index=True)
+    available_cols = [c for c in display_cols if c in product_df.columns]
+    st.dataframe(product_df[available_cols].head(20), use_container_width=True, hide_index=True)
 
 st.markdown("---")
 st.markdown("💡 **提示**：数据实时从数据库读取，刷新页面即可获取最新数据")
