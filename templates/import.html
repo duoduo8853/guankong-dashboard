@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据导入 - 管制品追踪系统</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f1f5f9; display: flex; }
+        .sidebar { width: 220px; background: linear-gradient(180deg, #1e3a5f 0%, #0f172a 100%); min-height: 100vh; padding: 24px 0; display: flex; flex-direction: column; }
+        .sidebar-header { color: white; font-size: 20px; font-weight: 700; padding: 0 24px 24px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 24px; }
+        .sidebar-header .icon { font-size: 24px; margin-right: 8px; }
+        .sidebar-menu { list-style: none; flex: 1; }
+        .sidebar-menu li { margin-bottom: 4px; }
+        .sidebar-menu li a { display: flex; align-items: center; padding: 14px 24px; color: rgba(255,255,255,0.7); text-decoration: none; font-size: 14px; border-left: 3px solid transparent; transition: all 0.3s ease; }
+        .sidebar-menu li a:hover { background: rgba(255,255,255,0.1); color: white; }
+        .sidebar-menu li a.active { background: rgba(59, 130, 246, 0.2); color: white; border-left-color: #3b82f6; }
+        .sidebar-menu li a .menu-icon { margin-right: 12px; font-size: 18px; }
+        .main-content { flex: 1; display: flex; flex-direction: column; }
+        .header { background: #1E3A5F; color: white; padding: 16px 24px; }
+        .header h1 { font-size: 20px; font-weight: 600; }
+        .container { padding: 24px; flex: 1; }
+        
+        .section { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 24px; }
+        .section-title { font-size: 16px; font-weight: 600; color: #1e293b; margin-bottom: 16px; display: flex; align-items: center; }
+        .section-title .icon { margin-right: 8px; font-size: 18px; }
+        
+        .template-preview { overflow-x: auto; }
+        .template-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .template-table th, .template-table td { padding: 10px 12px; text-align: left; border: 1px solid #e2e8f0; }
+        .template-table th { background: #f8fafc; font-weight: 600; color: #475569; }
+        .template-table .required { color: #ef4444; }
+        .tooltip-icon { position: relative; display: inline-block; margin-left: 4px; width: 16px; height: 16px; border-radius: 50%; background: #3b82f6; color: white; font-size: 11px; font-weight: bold; text-align: center; line-height: 16px; cursor: help; }
+        .tooltip-content { display: none; position: absolute; top: 100%; left: 0; margin-top: 8px; padding: 12px; background: #1e293b; color: white; border-radius: 8px; font-size: 12px; width: 280px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .tooltip-icon:hover .tooltip-content { display: block; }
+        .tooltip-content .tooltip-title { font-weight: 600; margin-bottom: 4px; }
+        .tooltip-content .tooltip-rule { margin: 4px 0; }
+        .tooltip-content .tooltip-example { color: #94a3b8; font-style: italic; }
+        
+        .download-dropdown { display: inline-block; position: relative; }
+        .download-btn { padding: 10px 20px; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; display: flex; align-items: center; }
+        .download-btn:hover { opacity: 0.9; }
+        .download-btn .arrow { margin-left: 8px; font-size: 12px; }
+        .dropdown-menu { display: none; position: absolute; top: 100%; right: 0; margin-top: 4px; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; overflow: hidden; min-width: 180px; }
+        .download-dropdown:hover .dropdown-menu { display: block; }
+        .dropdown-item { padding: 10px 16px; cursor: pointer; font-size: 13px; color: #475569; display: flex; align-items: center; }
+        .dropdown-item:hover { background: #f1f5f9; }
+        .dropdown-item .icon { margin-right: 8px; }
+        
+        .upload-area { border: 2px dashed #cbd5e1; border-radius: 12px; padding: 40px; text-align: center; transition: all 0.3s ease; cursor: pointer; }
+        .upload-area:hover, .upload-area.dragover { border-color: #3b82f6; background: rgba(59, 130, 246, 0.05); }
+        .upload-area .upload-icon { font-size: 48px; margin-bottom: 16px; }
+        .upload-area .upload-title { font-size: 16px; font-weight: 600; color: #1e293b; margin-bottom: 8px; }
+        .upload-area .upload-desc { font-size: 13px; color: #64748b; margin-bottom: 16px; }
+        .upload-btn { display: inline-block; padding: 10px 24px; background: #1E3A5F; color: white; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; }
+        .upload-btn:hover { background: #2d5a87; }
+        .file-input { display: none; }
+        
+        .file-info-box { margin-top: 16px; padding: 12px 16px; background: #f8fafc; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; }
+        .file-info-left { display: flex; align-items: center; }
+        .file-info-icon { font-size: 20px; margin-right: 12px; }
+        .file-info-name { font-weight: 500; color: #1e293b; }
+        .file-info-meta { font-size: 12px; color: #64748b; }
+        .file-actions { display: flex; gap: 8px; }
+        .action-btn { padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px; cursor: pointer; background: white; color: #475569; }
+        .action-btn:hover { background: #f1f5f9; }
+        .action-btn.remove { border-color: #ef4444; color: #ef4444; }
+        .action-btn.remove:hover { background: #fef2f2; }
+        
+        .version-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; margin-top: 8px; }
+        .version-badge.match { background: #dcfce7; color: #166534; }
+        .version-badge.mismatch { background: #fef3c7; color: #92400e; }
+        
+        .step-indicator { display: flex; align-items: center; justify-content: center; margin-bottom: 24px; }
+        .step { display: flex; align-items: center; }
+        .step-number { width: 32px; height: 32px; border-radius: 50%; background: #e2e8f0; color: #94a3b8; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; transition: all 0.3s ease; }
+        .step.active .step-number { background: #3b82f6; color: white; }
+        .step.completed .step-number { background: #22c55e; color: white; }
+        .step-label { margin-left: 8px; font-size: 14px; color: #64748b; }
+        .step.active .step-label { color: #1e293b; font-weight: 500; }
+        .step-separator { width: 40px; height: 2px; background: #e2e8f0; margin: 0 8px; }
+        .step.completed ~ .step-separator { background: #22c55e; }
+        
+        .preview-section { display: none; }
+        .preview-section.active { display: block; }
+        
+        .stats-bar { display: flex; gap: 24px; margin-bottom: 16px; padding: 16px; background: #f8fafc; border-radius: 8px; }
+        .stat-item { display: flex; align-items: center; }
+        .stat-icon { font-size: 20px; margin-right: 8px; }
+        .stat-value { font-weight: 600; font-size: 16px; color: #1e293b; }
+        .stat-label { font-size: 12px; color: #64748b; }
+        
+        .preview-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 16px; }
+        .preview-table th, .preview-table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        .preview-table th { background: #f8fafc; font-weight: 600; color: #475569; }
+        .preview-table tr:hover { background: #f8fafc; }
+        .preview-table .error-row { background: #fef2f2; }
+        .preview-table .error-row td:first-child { position: relative; }
+        .preview-table .error-row td:first-child::before { content: ''; position: absolute; left: -4px; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; border-radius: 50%; background: #ef4444; }
+        
+        .status-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+        .status-badge.pass { background: #dcfce7; color: #166534; }
+        .status-badge.warning { background: #fef3c7; color: #92400e; }
+        .status-badge.error { background: #fee2e2; color: #991b1b; cursor: pointer; }
+        
+        .action-buttons { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
+        .btn { padding: 10px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; transition: all 0.2s ease; }
+        .btn-primary { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white; }
+        .btn-primary:hover { opacity: 0.9; }
+        .btn-secondary { background: #f1f5f9; color: #475569; }
+        .btn-secondary:hover { background: #e2e8f0; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-danger:hover { background: #dc2626; }
+        
+        .error-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
+        .error-modal.active { display: flex; }
+        .modal-content { background: white; border-radius: 12px; padding: 24px; max-width: 400px; width: 90%; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .modal-title { font-size: 16px; font-weight: 600; color: #1e293b; }
+        .modal-close { font-size: 24px; cursor: pointer; color: #94a3b8; }
+        .modal-body { font-size: 14px; color: #475569; }
+        .modal-body .error-line { margin-bottom: 8px; color: #ef4444; font-weight: 500; }
+        .modal-body .error-desc { margin-bottom: 8px; }
+        .modal-body .error-suggest { background: #fef3c7; padding: 8px 12px; border-radius: 4px; font-size: 13px; color: #92400e; }
+        
+        .history-section { margin-top: 24px; }
+        .history-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .history-table th, .history-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        .history-table th { background: #f8fafc; font-weight: 600; color: #475569; }
+        .history-table tr:hover { background: #f8fafc; }
+        
+        .status-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+        .status-tag.success { background: #dcfce7; color: #166534; }
+        .status-tag.partial { background: #fef3c7; color: #92400e; }
+        .status-tag.failed { background: #fee2e2; color: #991b1b; }
+        
+        .validation-error { color: #ef4444; font-size: 12px; margin-top: 8px; display: none; }
+        .validation-error.show { display: block; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header"><span class="icon">📦</span><span>管制品追踪</span></div>
+        <ul class="sidebar-menu">
+            <li><a href="/dashboard"><span class="menu-icon">📊</span>仪表盘</a></li>
+            <li><a href="/records"><span class="menu-icon">📋</span>管制品台账</a></li>
+            <li><a href="/add"><span class="menu-icon">➕</span>新增记录</a></li>
+            <li><a href="/import" class="active"><span class="menu-icon">📥</span>数据导入</a></li>
+            <li><a href="/report"><span class="menu-icon">📈</span>报表分析</a></li>
+            <li><a href="/admin"><span class="menu-icon">⚙️</span>系统管理</a></li>
+        </ul>
+    </div>
+    
+    <div class="main-content">
+        <div class="header">
+            <h1>📥 数据导入</h1>
+        </div>
+        
+        <div class="container">
+            <div class="section">
+                <div class="section-title"><span class="icon">📋</span>模板中心</div>
+                
+                <div class="template-preview">
+                    <table class="template-table">
+                        <thead>
+                            <tr>
+                                <th>生产班次<span class="tooltip-icon">?<span class="tooltip-content"><span class="tooltip-title">生产班次</span><span class="tooltip-rule">必填，格式：YYYY-MM-DD</span><span class="tooltip-example">示例：2026-04-08</span></span></th>
+                                <th>产品品项<span class="tooltip-icon">?<span class="tooltip-content"><span class="tooltip-title">产品品项</span><span class="tooltip-rule">必填，完整产品名称</span><span class="tooltip-example">示例：成品-PET330*12入茉莉蜜茶彩膜装（天康）无菌17g</span></span></th>
+                                <th>管制原因<span class="tooltip-icon">?<span class="tooltip-content"><span class="tooltip-title">管制原因</span><span class="tooltip-rule">必填，选择或填写管制原因</span><span class="tooltip-example">示例：返工、条码不符、包装破损</span></span></th>
+                                <th>数量<span class="tooltip-icon">?<span class="tooltip-content"><span class="tooltip-title">数量</span><span class="tooltip-rule">必填，整数，单位：箱</span><span class="tooltip-example">示例：240</span></span></th>
+                                <th>处理意见<span class="tooltip-icon">?<span class="tooltip-content"><span class="tooltip-title">处理意见</span><span class="tooltip-rule">选填，处理建议或备注</span><span class="tooltip-example">示例：返工、报废</span></span></th>
+                                <th>处理部门<span class="tooltip-icon">?<span class="tooltip-content"><span class="tooltip-title">处理部门</span><span class="tooltip-rule">必填，制造或仓储</span><span class="tooltip-example">示例：仓储</span></span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>2026-04-08</td>
+                                <td>成品-PET330*12入茉莉蜜茶彩膜装（天康）无菌17g</td>
+                                <td>返工</td>
+                                <td>240</td>
+                                <td>返工</td>
+                                <td>仓储</td>
+                            </tr>
+                            <tr>
+                                <td>2026-04-07</td>
+                                <td>成品-PET500*15入绿茶低糖蜂蜜味纸箱装</td>
+                                <td>条码不符</td>
+                                <td>800</td>
+                                <td>更换条码</td>
+                                <td>制造</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div style="margin-top: 20px; text-align: right;">
+                    <div class="download-dropdown">
+                        <button class="download-btn">
+                            <span>📥 一键下载</span>
+                            <span class="arrow">▼</span>
+                        </button>
+                        <div class="dropdown-menu">
+                            <div class="dropdown-item" onclick="downloadTemplate('standard')">
+                                <span class="icon">📄</span>
+                                <span>下载标准模板</span>
+                            </div>
+                            <div class="dropdown-item" onclick="downloadTemplate('sample')">
+                                <span class="icon">📊</span>
+                                <span>下载带示例数据模板</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title"><span class="icon">📤</span>上传文件</div>
+                
+                <div class="step-indicator">
+                    <div class="step active" id="step1">
+                        <div class="step-number">1</div>
+                        <span class="step-label">上传文件</span>
+                    </div>
+                    <div class="step-separator"></div>
+                    <div class="step" id="step2">
+                        <div class="step-number">2</div>
+                        <span class="step-label">预览数据</span>
+                    </div>
+                    <div class="step-separator"></div>
+                    <div class="step" id="step3">
+                        <div class="step-number">3</div>
+                        <span class="step-label">确认导入</span>
+                    </div>
+                </div>
+                
+                <div class="upload-section" id="upload-section">
+                    <div class="upload-area" id="upload-area" ondragover="handleDragOver(event)" ondrop="handleDrop(event)" onclick="triggerFileInput()">
+                        <div class="upload-icon">📁</div>
+                        <div class="upload-title">拖拽文件到此处上传</div>
+                        <div class="upload-desc">支持 .xlsx, .xls 格式，最大 10MB</div>
+                        <input type="file" id="file-input" class="file-input" accept=".xlsx,.xls" onchange="handleFileSelect(event)">
+                        <label for="file-input" class="upload-btn">选择文件</label>
+                    </div>
+                    
+                    <div class="validation-error" id="validation-error"></div>
+                    
+                    <div class="file-info-box" id="file-info-box" style="display: none;">
+                        <div class="file-info-left">
+                            <span class="file-info-icon">📄</span>
+                            <div>
+                                <div class="file-info-name" id="file-name"></div>
+                                <div class="file-info-meta" id="file-meta"></div>
+                            </div>
+                        </div>
+                        <div class="file-actions">
+                            <button class="action-btn" onclick="triggerFileInput()">重新选择</button>
+                            <button class="action-btn remove" onclick="removeFile()">移除文件</button>
+                        </div>
+                    </div>
+                    
+                    <div id="version-info"></div>
+                </div>
+                
+                <div class="preview-section" id="preview-section">
+                    <div class="stats-bar">
+                        <div class="stat-item">
+                            <span class="stat-icon">📝</span>
+                            <div>
+                                <div class="stat-value" id="total-rows">0</div>
+                                <div class="stat-label">总行数</div>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-icon">✅</span>
+                            <div>
+                                <div class="stat-value" id="pass-rows">0</div>
+                                <div class="stat-label">可导入</div>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-icon">⚠️</span>
+                            <div>
+                                <div class="stat-value" id="warning-rows">0</div>
+                                <div class="stat-label">警告</div>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-icon">❌</span>
+                            <div>
+                                <div class="stat-value" id="error-rows">0</div>
+                                <div class="stat-label">错误</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <div>
+                            <span style="font-size: 13px; color: #64748b;">预览前20行数据</span>
+                        </div>
+                        <button class="btn btn-secondary" onclick="exportErrorReport()" id="export-error-btn" style="display: none;">
+                            📥 导出错误报告
+                        </button>
+                    </div>
+                    
+                    <div style="overflow-x: auto;">
+                        <table class="preview-table" id="preview-table">
+                            <thead>
+                                <tr>
+                                    <th>行号</th>
+                                    <th>生产日期</th>
+                                    <th>产品名称</th>
+                                    <th>规格</th>
+                                    <th>口味</th>
+                                    <th>数量</th>
+                                    <th>管制原因</th>
+                                    <th>处理部门</th>
+                                    <th>处理期限</th>
+                                    <th>校验状态</th>
+                                </tr>
+                            </thead>
+                            <tbody id="preview-body"></tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <button class="btn btn-secondary" onclick="backToUpload()">← 返回上传</button>
+                        <button class="btn btn-primary" onclick="confirmImport()" id="confirm-btn">确认导入</button>
+                    </div>
+                </div>
+                
+                <div class="preview-section" id="confirm-section">
+                    <div style="text-align: center; padding: 40px;">
+                        <div style="font-size: 48px; margin-bottom: 16px;">✅</div>
+                        <h3 style="font-size: 20px; font-weight: 600; color: #1e293b; margin-bottom: 8px;">数据导入成功</h3>
+                        <p style="color: #64748b; margin-bottom: 24px;">成功导入 <span id="imported-count">0</span> 条记录</p>
+                        <div class="action-buttons" style="justify-content: center;">
+                            <button class="btn btn-primary" onclick="resetAndUpload()">继续导入</button>
+                            <button class="btn btn-secondary" onclick="goToRecords()">查看台账</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section history-section">
+                <div class="section-title"><span class="icon">📜</span>导入历史</div>
+                
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>导入时间</th>
+                            <th>操作人</th>
+                            <th>文件名</th>
+                            <th>总行数 / 成功 / 失败</th>
+                            <th>导入类型</th>
+                            <th>状态</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-body">
+                        <tr>
+                            <td colspan="6" style="text-align: center; color: #94a3b8;">加载导入历史...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="error-modal" id="error-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">❌ 错误详情</div>
+                <div class="modal-close" onclick="closeErrorModal()">×</div>
+            </div>
+            <div class="modal-body">
+                <div class="error-line" id="error-line"></div>
+                <div class="error-desc" id="error-desc"></div>
+                <div class="error-suggest" id="error-suggest"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentFile = null;
+        let previewData = null;
+        
+        function downloadTemplate(type) {
+            const url = type === 'sample' ? '/api/export?sample=true' : '/api/export';
+            window.location.href = url;
+        }
+        
+        function handleDragOver(e) {
+            e.preventDefault();
+            document.getElementById('upload-area').classList.add('dragover');
+        }
+        
+        function handleDrop(e) {
+            e.preventDefault();
+            document.getElementById('upload-area').classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                processFile(files[0]);
+            }
+        }
+        
+        function triggerFileInput() {
+            document.getElementById('file-input').click();
+        }
+        
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                processFile(file);
+            }
+        }
+        
+        function processFile(file) {
+            const validation = validateFile(file);
+            if (!validation.valid) {
+                document.getElementById('validation-error').textContent = validation.message;
+                document.getElementById('validation-error').classList.add('show');
+                document.getElementById('file-info-box').style.display = 'none';
+                return;
+            }
+            
+            document.getElementById('validation-error').classList.remove('show');
+            currentFile = file;
+            
+            const size = (file.size / 1024).toFixed(1);
+            document.getElementById('file-name').textContent = file.name;
+            document.getElementById('file-meta').textContent = `${size} KB`;
+            document.getElementById('file-info-box').style.display = 'flex';
+            
+            checkVersion();
+        }
+        
+        function validateFile(file) {
+            const validExtensions = ['.xlsx', '.xls'];
+            const extension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+            
+            if (!validExtensions.includes(extension)) {
+                return { valid: false, message: '❌ 文件格式错误，请选择 .xlsx 或 .xls 格式的 Excel 文件' };
+            }
+            
+            const maxSize = 10 * 1024 * 1024;
+            if (file.size > maxSize) {
+                return { valid: false, message: '❌ 文件大小超过限制，最大支持 10MB' };
+            }
+            
+            return { valid: true, message: '' };
+        }
+        
+        function checkVersion() {
+            fetch('/api/check-template-version')
+                .then(res => res.json())
+                .then(data => {
+                    const versionInfo = document.getElementById('version-info');
+                    if (data.match) {
+                        versionInfo.innerHTML = '<span class="version-badge match">✓ 当前文件匹配最新模板版本</span>';
+                    } else {
+                        versionInfo.innerHTML = '<span class="version-badge mismatch">⚠️ 检测到模板更新，建议下载最新模板后重新填写</span>';
+                    }
+                })
+                .catch(() => {
+                    document.getElementById('version-info').innerHTML = '';
+                });
+        }
+        
+        function removeFile() {
+            currentFile = null;
+            document.getElementById('file-input').value = '';
+            document.getElementById('file-info-box').style.display = 'none';
+            document.getElementById('version-info').innerHTML = '';
+            document.getElementById('validation-error').classList.remove('show');
+        }
+        
+        function uploadAndPreview() {
+            if (!currentFile) return;
+            
+            const formData = new FormData();
+            formData.append('file', currentFile);
+            formData.append('preview', 'true');
+            
+            document.getElementById('upload-section').style.display = 'none';
+            document.getElementById('preview-section').style.display = 'block';
+            document.getElementById('step1').classList.add('completed');
+            document.getElementById('step1').classList.remove('active');
+            document.getElementById('step2').classList.add('active');
+            
+            fetch('/api/import-preview', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                previewData = data;
+                renderPreview(data);
+            })
+            .catch(err => {
+                alert('预览失败: ' + err.message);
+                backToUpload();
+            });
+        }
+        
+        function renderPreview(data) {
+            document.getElementById('total-rows').textContent = data.total || 0;
+            document.getElementById('pass-rows').textContent = data.pass_count || 0;
+            document.getElementById('warning-rows').textContent = data.warning_count || 0;
+            document.getElementById('error-rows').textContent = data.error_count || 0;
+            
+            const body = document.getElementById('preview-body');
+            body.innerHTML = '';
+            
+            const displayData = data.rows || [];
+            displayData.slice(0, 20).forEach((row, index) => {
+                const tr = document.createElement('tr');
+                if (row.status === 'error') {
+                    tr.classList.add('error-row');
+                }
+                
+                const statusBadge = getStatusBadge(row);
+                
+                tr.innerHTML = `
+                    <td>${row.row_number}</td>
+                    <td>${row.production_date || ''}</td>
+                    <td>${row.product_name || ''}</td>
+                    <td>${row.spec || ''}</td>
+                    <td>${row.flavor || ''}</td>
+                    <td>${row.quantity || ''}</td>
+                    <td>${row.control_reason || ''}</td>
+                    <td>${row.handle_dept || ''}</td>
+                    <td>${row.deadline || ''}</td>
+                    <td>${statusBadge}</td>
+                `;
+                
+                const statusCell = tr.querySelector('td:last-child .status-badge.error');
+                if (statusCell) {
+                    statusCell.onclick = () => showErrorDetail(row);
+                }
+                
+                body.appendChild(tr);
+            });
+            
+            if (data.error_count > 0) {
+                document.getElementById('export-error-btn').style.display = 'block';
+            }
+            
+            const confirmBtn = document.getElementById('confirm-btn');
+            if (data.error_count > 0) {
+                confirmBtn.textContent = '跳过错误导入';
+                confirmBtn.style.background = '#f59e0b';
+            } else {
+                confirmBtn.textContent = '确认导入';
+                confirmBtn.style.background = 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)';
+            }
+        }
+        
+        function getStatusBadge(row) {
+            switch (row.status) {
+                case 'pass':
+                    return '<span class="status-badge pass">✅ 通过</span>';
+                case 'warning':
+                    return '<span class="status-badge warning">⚠️ 警告</span>';
+                case 'error':
+                    return '<span class="status-badge error">❌ 错误</span>';
+                default:
+                    return '';
+            }
+        }
+        
+        function showErrorDetail(row) {
+            document.getElementById('error-line').textContent = `第 ${row.row_number} 行`;
+            document.getElementById('error-desc').textContent = row.error_message || '未知错误';
+            document.getElementById('error-suggest').textContent = row.suggestion || '请检查数据格式';
+            document.getElementById('error-modal').classList.add('active');
+        }
+        
+        function closeErrorModal() {
+            document.getElementById('error-modal').classList.remove('active');
+        }
+        
+        function backToUpload() {
+            document.getElementById('preview-section').style.display = 'none';
+            document.getElementById('confirm-section').style.display = 'none';
+            document.getElementById('upload-section').style.display = 'block';
+            document.getElementById('step2').classList.remove('active', 'completed');
+            document.getElementById('step3').classList.remove('active', 'completed');
+            document.getElementById('step1').classList.add('active');
+            document.getElementById('step1').classList.remove('completed');
+        }
+        
+        function confirmImport() {
+            document.getElementById('preview-section').style.display = 'none';
+            document.getElementById('confirm-section').style.display = 'block';
+            document.getElementById('step2').classList.add('completed');
+            document.getElementById('step2').classList.remove('active');
+            document.getElementById('step3').classList.add('active');
+            
+            const formData = new FormData();
+            formData.append('file', currentFile);
+            formData.append('skip_errors', 'true');
+            
+            fetch('/api/import', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('imported-count').textContent = data.success_count || 0;
+                loadHistory();
+            })
+            .catch(err => {
+                alert('导入失败: ' + err.message);
+                backToUpload();
+            });
+        }
+        
+        function exportErrorReport() {
+            fetch('/api/export-error-report', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(previewData)
+            })
+            .then(res => res.blob())
+            .then(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = '导入错误报告.xlsx';
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+        }
+        
+        function resetAndUpload() {
+            removeFile();
+            backToUpload();
+        }
+        
+        function goToRecords() {
+            window.location.href = '/records';
+        }
+        
+        function loadHistory() {
+            fetch('/api/import-history')
+                .then(res => res.json())
+                .then(data => {
+                    const body = document.getElementById('history-body');
+                    if (!data || data.length === 0) {
+                        body.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #94a3b8;">暂无导入记录</td></tr>';
+                        return;
+                    }
+                    
+                    body.innerHTML = data.map(record => `
+                        <tr>
+                            <td>${record.import_time}</td>
+                            <td>${record.operator || '系统用户'}</td>
+                            <td title="${record.filename}">${record.filename}</td>
+                            <td>${record.total_rows} / ${record.success_rows} / ${record.failed_rows}</td>
+                            <td>${record.import_type === 'update' ? '更新' : '新增'}</td>
+                            <td><span class="status-tag ${record.status}">${getStatusText(record.status)}</span></td>
+                        </tr>
+                    `).join('');
+                });
+        }
+        
+        function getStatusText(status) {
+            switch (status) {
+                case 'success': return '成功';
+                case 'partial': return '部分成功';
+                case 'failed': return '失败';
+                default: return status;
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', loadHistory);
+        
+        document.getElementById('upload-area').addEventListener('click', function(e) {
+            if (currentFile && e.target !== document.querySelector('.upload-btn')) {
+                uploadAndPreview();
+            }
+        });
+    </script>
+</body>
+</html>

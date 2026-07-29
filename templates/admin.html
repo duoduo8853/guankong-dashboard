@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统管理 - 管制品追踪系统</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; display: flex; }
+        .sidebar { width: 220px; background: linear-gradient(180deg, #1e3a5f 0%, #0f172a 100%); min-height: 100vh; padding: 24px 0; display: flex; flex-direction: column; }
+        .sidebar-header { color: white; font-size: 20px; font-weight: 700; padding: 0 24px 24px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 24px; }
+        .sidebar-header .icon { font-size: 24px; margin-right: 8px; }
+        .sidebar-menu { list-style: none; flex: 1; }
+        .sidebar-menu li { margin-bottom: 4px; }
+        .sidebar-menu li a { display: flex; align-items: center; padding: 14px 24px; color: rgba(255,255,255,0.7); text-decoration: none; font-size: 14px; border-left: 3px solid transparent; transition: all 0.3s ease; }
+        .sidebar-menu li a:hover { background: rgba(255,255,255,0.1); color: white; }
+        .sidebar-menu li a.active { background: rgba(59, 130, 246, 0.2); color: white; border-left-color: #3b82f6; }
+        .sidebar-menu li a .menu-icon { margin-right: 12px; font-size: 18px; }
+        .main-content { flex: 1; display: flex; flex-direction: column; }
+        .header { background: #1E3A5F; color: white; padding: 16px 24px; }
+        .header h1 { font-size: 20px; font-weight: 600; }
+        .home-btn { 
+            position: fixed; 
+            top: 24px; 
+            right: 24px; 
+            padding: 8px 20px; 
+            border-radius: 40px; 
+            background: rgba(255,255,255,0.7); 
+            backdrop-filter: blur(8px); 
+            border: 1px solid rgba(255,255,255,0.3); 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
+            text-decoration: none; 
+            font-family: system-ui, -apple-system, sans-serif; 
+            font-weight: 500; 
+            color: #1e293b; 
+            font-size: 14px; 
+            transition: all 0.2s ease; 
+            z-index: 1000; 
+        }
+        .home-btn:hover { 
+            background: rgba(255,255,255,0.9); 
+            box-shadow: 0 6px 16px rgba(0,0,0,0.1); 
+            transform: translateY(-2px); 
+        }
+        .container { padding: 24px; flex: 1; }
+        .tabs { display: flex; gap: 12px; margin-bottom: 20px; }
+        .tab { padding: 8px 16px; background: white; border: 1px solid #e0e0e0; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        .tab.active { background: #1E3A5F; color: white; border-color: #1E3A5F; }
+        .content-section { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: none; }
+        .content-section.active { display: block; }
+        .section-title { font-size: 16px; font-weight: 600; color: #333; margin-bottom: 16px; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 14px; color: #333; margin-bottom: 8px; }
+        .form-group input, .form-group select { width: 300px; padding: 8px 12px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 14px; }
+        button { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        .btn-primary { background: #1E3A5F; color: white; }
+        .btn-primary:hover { background: #2d5a87; }
+        .btn-secondary { background: #f0f0f0; color: #333; margin-left: 8px; }
+        .btn-secondary:hover { background: #e0e0e0; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-danger:hover { background: #c82333; }
+        table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #f0f0f0; }
+        th { background: #f8f9fa; font-weight: 600; font-size: 13px; }
+        td { font-size: 13px; color: #666; }
+        .success-msg { color: #28a745; font-size: 14px; margin-top: 12px; }
+        .input-group { display: flex; gap: 12px; align-items: flex-end; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header"><span class="icon">📦</span><span>管制品追踪</span></div>
+        <ul class="sidebar-menu">
+            <li><a href="/dashboard"><span class="menu-icon">📊</span>仪表盘</a></li>
+            <li><a href="/records"><span class="menu-icon">📋</span>管制品台账</a></li>
+            <li><a href="/add"><span class="menu-icon">➕</span>新增记录</a></li>
+            <li><a href="/import"><span class="menu-icon">📥</span>数据导入</a></li>
+            <li><a href="/report"><span class="menu-icon">📈</span>报表分析</a></li>
+            <li><a href="/admin" class="active"><span class="menu-icon">⚙️</span>系统管理</a></li>
+        </ul>
+    </div>
+    
+    <div class="main-content">
+        <div class="header">
+            <h1>⚙️ 系统管理</h1>
+        </div>
+        
+        <a href="/" class="home-btn">← 主页</a>
+        
+        <div class="container">
+            <div class="tabs">
+                <div class="tab active" data-tab="users">用户管理</div>
+                <div class="tab" data-tab="config">系统配置</div>
+                <div class="tab" data-tab="feishu">飞书配置</div>
+            </div>
+            
+            <div class="content-section active" id="users">
+                <div class="section-title">👥 用户管理</div>
+                <div class="input-group">
+                    <div class="form-group">
+                        <label>用户名</label>
+                        <input type="text" id="username" placeholder="请输入用户名">
+                    </div>
+                    <div class="form-group">
+                        <label>密码</label>
+                        <input type="password" id="password" placeholder="请输入密码">
+                    </div>
+                    <div class="form-group">
+                        <label>角色</label>
+                        <select id="role">
+                            <option value="操作员">操作员</option>
+                            <option value="管理员">管理员</option>
+                        </select>
+                    </div>
+                    <button class="btn-primary" onclick="addUser()">添加用户</button>
+                </div>
+                <table>
+                    <thead>
+                        <tr><th>ID</th><th>用户名</th><th>角色</th><th>部门</th><th>操作</th></tr>
+                    </thead>
+                    <tbody id="users-table"></tbody>
+                </table>
+            </div>
+            
+            <div class="content-section" id="config">
+                <div class="section-title">⚙️ 系统配置</div>
+                <div class="form-group">
+                    <label>默认处理期限天数</label>
+                    <input type="number" id="deadline-days" min="1">
+                </div>
+                <div class="form-group">
+                    <label>超期提醒天数阈值</label>
+                    <input type="number" id="overdue-days" min="1">
+                </div>
+                <button class="btn-primary" onclick="saveConfig()">保存配置</button>
+                <div class="success-msg" id="config-msg"></div>
+            </div>
+            
+            <div class="content-section" id="feishu">
+                <div class="section-title">💬 飞书配置</div>
+                <div class="form-group">
+                    <label>Webhook地址</label>
+                    <input type="text" id="webhook-url" style="width: 500px;">
+                </div>
+                <div class="form-group">
+                    <label>外部访问地址</label>
+                    <input type="text" id="external-url" style="width: 500px;">
+                </div>
+                <div class="form-group">
+                    <label>启用推送</label>
+                    <select id="feishu-enabled">
+                        <option value="1">启用</option>
+                        <option value="0">禁用</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>推送时间</label>
+                    <input type="time" id="schedule-time">
+                </div>
+                <button class="btn-primary" onclick="saveFeishuConfig()">保存配置</button>
+                <button class="btn-secondary" onclick="testFeishu()">测试推送</button>
+                <div class="success-msg" id="feishu-msg"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab).classList.add('active');
+            });
+        });
+
+        function loadUsers() {
+            fetch('/api/users')
+                .then(res => res.json())
+                .then(data => {
+                    const tbody = document.getElementById('users-table');
+                    tbody.innerHTML = '';
+                    data.forEach(user => {
+                        tbody.innerHTML += `
+                            <tr>
+                                <td>${user.id}</td>
+                                <td>${user.username}</td>
+                                <td>${user.role}</td>
+                                <td>${user.department}</td>
+                                <td>
+                                    <button class="btn-secondary" style="padding: 4px 8px; font-size: 12px;" onclick="deleteUser(${user.id})">删除</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                });
+        }
+
+        function addUser() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const role = document.getElementById('role').value;
+            
+            fetch('/api/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password, role })
+            })
+            .then(res => res.json())
+            .then(() => {
+                loadUsers();
+                document.getElementById('username').value = '';
+                document.getElementById('password').value = '';
+            });
+        }
+
+        function deleteUser(id) {
+            if (confirm('确定要删除该用户吗？')) {
+                fetch(`/api/users/${id}`, { method: 'DELETE' })
+                    .then(() => loadUsers());
+            }
+        }
+
+        function loadConfig() {
+            fetch('/api/system_config')
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('deadline-days').value = data.default_deadline_days?.value || 2;
+                    document.getElementById('overdue-days').value = data.overdue_remind_days?.value || 5;
+                });
+        }
+
+        function saveConfig() {
+            const config = {
+                default_deadline_days: document.getElementById('deadline-days').value,
+                overdue_remind_days: document.getElementById('overdue-days').value
+            };
+            fetch('/api/system_config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            })
+            .then(() => {
+                document.getElementById('config-msg').textContent = '配置保存成功';
+                setTimeout(() => document.getElementById('config-msg').textContent = '', 3000);
+            });
+        }
+
+        function loadFeishuConfig() {
+            fetch('/api/feishu/config')
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('webhook-url').value = data.webhook_url || '';
+                    document.getElementById('external-url').value = data.external_url || 'http://localhost:5000';
+                    document.getElementById('feishu-enabled').value = data.enabled ? '1' : '0';
+                    document.getElementById('schedule-time').value = data.schedule_time || '08:00';
+                });
+        }
+
+        function saveFeishuConfig() {
+            const config = {
+                webhook_url: document.getElementById('webhook-url').value,
+                external_url: document.getElementById('external-url').value,
+                enabled: document.getElementById('feishu-enabled').value === '1',
+                schedule_time: document.getElementById('schedule-time').value
+            };
+            fetch('/api/feishu/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            })
+            .then(() => {
+                document.getElementById('feishu-msg').textContent = '配置保存成功';
+                setTimeout(() => document.getElementById('feishu-msg').textContent = '', 3000);
+            });
+        }
+
+        function testFeishu() {
+            fetch('/api/feishu/test', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('feishu-msg').textContent = data.message;
+                    setTimeout(() => document.getElementById('feishu-msg').textContent = '', 3000);
+                });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadUsers();
+            loadConfig();
+            loadFeishuConfig();
+        });
+    </script>
+</body>
+</html>

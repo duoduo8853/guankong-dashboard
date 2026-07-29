@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>管制品追踪 - 手机端</title>
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/bootstrap-icons/1.10.0/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --primary-color: #0d6efd;
+            --success-color: #198754;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --bg-color: #f8f9fa;
+        }
+        
+        * {
+            -webkit-tap-highlight-color: transparent;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-color);
+            padding-bottom: 80px;
+            margin: 0;
+        }
+        
+        .mobile-header {
+            background: linear-gradient(135deg, var(--primary-color), #0a58ca);
+            color: white;
+            padding: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .mobile-header h1 {
+            font-size: 18px;
+            margin: 0;
+            font-weight: 600;
+        }
+        
+        .mobile-header .subtitle {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+        
+        .stats-card {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            margin: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        .stats-card .number {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+        
+        .stats-card .label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+        
+        .stats-row {
+            display: flex;
+            gap: 10px;
+            padding: 0 10px;
+        }
+        
+        .stats-row .stats-card {
+            flex: 1;
+            text-align: center;
+            margin: 10px 0;
+        }
+        
+        .stats-card.pending .number { color: var(--danger-color); }
+        .stats-card.processing .number { color: var(--warning-color); }
+        .stats-card.completed .number { color: var(--success-color); }
+        .stats-card.overdue .number { color: #cf1322; }
+        
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            padding: 15px 15px 10px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .record-item {
+            background: white;
+            border-radius: 12px;
+            margin: 8px 15px;
+            padding: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            border-left: 4px solid var(--primary-color);
+        }
+        
+        .record-item.pending { border-left-color: var(--danger-color); }
+        .record-item.processing { border-left-color: var(--warning-color); }
+        .record-item.completed { border-left-color: var(--success-color); }
+        
+        .record-item .product-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        
+        .record-item .info-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        
+        .record-item .info-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .record-item .info-item i {
+            font-size: 14px;
+        }
+        
+        .record-item .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .status-badge.pending {
+            background: #fff2f0;
+            color: var(--danger-color);
+        }
+        
+        .status-badge.processing {
+            background: #fffbe6;
+            color: #d46b08;
+        }
+        
+        .status-badge.completed {
+            background: #f6ffed;
+            color: var(--success-color);
+        }
+        
+        .progress-bar-mobile {
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        
+        .progress-bar-mobile .progress-fill {
+            height: 100%;
+            background: var(--success-color);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+        
+        .progress-text {
+            font-size: 11px;
+            color: #999;
+            margin-top: 4px;
+            text-align: right;
+        }
+        
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            display: flex;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            padding: 8px 0;
+            padding-bottom: env(safe-area-inset-bottom, 8px);
+        }
+        
+        .bottom-nav .nav-item {
+            flex: 1;
+            text-align: center;
+            text-decoration: none;
+            color: #999;
+            font-size: 11px;
+            padding: 5px 0;
+        }
+        
+        .bottom-nav .nav-item.active {
+            color: var(--primary-color);
+        }
+        
+        .bottom-nav .nav-item i {
+            font-size: 22px;
+            display: block;
+            margin-bottom: 4px;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .refresh-btn {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: white;
+            border: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1001;
+        }
+        
+        .refresh-btn i {
+            color: var(--primary-color);
+            font-size: 18px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        
+        .empty-state i {
+            font-size: 60px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+        
+        .empty-state p {
+            font-size: 14px;
+        }
+        
+        .overdue-tag {
+            background: #cf1322;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        .date-tag {
+            background: #f0f0f0;
+            color: #666;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+        
+        .urgency-high { border-left-color: #cf1322 !important; }
+        .urgency-medium { border-left-color: #fa8c16 !important; }
+        .urgency-low { border-left-color: #ffc107 !important; }
+        
+        .search-box {
+            margin: 10px 15px;
+            position: relative;
+        }
+        
+        .search-box input {
+            width: 100%;
+            padding: 12px 15px 12px 40px;
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 14px;
+            background: white;
+        }
+        
+        .search-box i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999;
+        }
+        
+        .filter-chips {
+            display: flex;
+            gap: 8px;
+            padding: 0 15px 10px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .filter-chips::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .filter-chip {
+            padding: 6px 14px;
+            border-radius: 20px;
+            background: white;
+            border: 1px solid #e9ecef;
+            font-size: 12px;
+            white-space: nowrap;
+            text-decoration: none;
+            color: #666;
+        }
+        
+        .filter-chip.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="mobile-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1><i class="bi bi-box-seam"></i> 管制品追踪</h1>
+                <div class="subtitle" id="currentDate"></div>
+            </div>
+        </div>
+    </div>
+    
+    <button class="refresh-btn" onclick="refreshData()">
+        <i class="bi bi-arrow-clockwise"></i>
+    </button>
+    
+    <div id="dashboardTab" class="tab-content active">
+        <div class="stats-row">
+            <div class="stats-card pending">
+                <div class="number" id="pendingQty">-</div>
+                <div class="label"><i class="bi bi-hourglass-split"></i> 待处理</div>
+            </div>
+            <div class="stats-card processing">
+                <div class="number" id="processingQty">-</div>
+                <div class="label"><i class="bi bi-arrow-repeat"></i> 处理中</div>
+            </div>
+        </div>
+        <div class="stats-row">
+            <div class="stats-card completed">
+                <div class="number" id="completedQty">-</div>
+                <div class="label"><i class="bi bi-check-circle"></i> 已完成</div>
+            </div>
+            <div class="stats-card overdue">
+                <div class="number" id="overdueCount">-</div>
+                <div class="label"><i class="bi bi-exclamation-triangle"></i> 超期</div>
+            </div>
+        </div>
+        
+        <div class="stats-card" style="text-align: center;">
+            <div style="font-size: 12px; color: #666;">整体完成率</div>
+            <div style="font-size: 32px; font-weight: 700; color: var(--success-color);" id="completionRate">-</div>
+            <div class="progress-bar-mobile" style="margin-top: 10px;">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="recordsTab" class="tab-content">
+        <div class="search-box">
+            <i class="bi bi-search"></i>
+            <input type="text" id="searchInput" placeholder="搜索产品名称..." oninput="filterRecords()">
+        </div>
+        
+        <div class="filter-chips">
+            <a href="#" class="filter-chip active" data-filter="all" onclick="setFilter('all', event)">全部</a>
+            <a href="#" class="filter-chip" data-filter="pending" onclick="setFilter('pending', event)">待处理</a>
+            <a href="#" class="filter-chip" data-filter="processing" onclick="setFilter('processing', event)">处理中</a>
+            <a href="#" class="filter-chip" data-filter="completed" onclick="setFilter('completed', event)">已完成</a>
+            <a href="#" class="filter-chip" data-filter="overdue" onclick="setFilter('overdue', event)">超期</a>
+        </div>
+        
+        <div id="recordsList">
+            <div class="loading"><i class="bi bi-hourglass-split"></i> 加载中...</div>
+        </div>
+    </div>
+    
+    <div id="profileTab" class="tab-content">
+        <div class="stats-card" style="text-align: center; padding: 30px;">
+            <i class="bi bi-person-circle" style="font-size: 60px; color: var(--primary-color);"></i>
+            <h4 style="margin-top: 15px; margin-bottom: 5px;">管理员</h4>
+            <p style="color: #999; margin: 0;">管制品追踪系统</p>
+        </div>
+        
+        <div class="stats-card">
+            <div class="d-flex justify-content-between align-items-center" style="padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
+                <span><i class="bi bi-building"></i> 部门</span>
+                <span style="color: #666;">管理系统</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center" style="padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
+                <span><i class="bi bi-telephone"></i> 联系电话</span>
+                <span style="color: #666;">-</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center" style="padding: 10px 0;">
+                <span><i class="bi bi-shield-check"></i> 系统版本</span>
+                <span style="color: #666;">v1.0.0</span>
+            </div>
+        </div>
+    </div>
+    
+    <nav class="bottom-nav">
+        <a href="#" class="nav-item active" data-tab="dashboardTab" onclick="switchTab('dashboardTab', this); return false;">
+            <i class="bi bi-speedometer2"></i>
+            概览
+        </a>
+        <a href="#" class="nav-item" data-tab="recordsTab" onclick="switchTab('recordsTab', this); return false;">
+            <i class="bi bi-list-ul"></i>
+            台账
+        </a>
+        <a href="#" class="nav-item" data-tab="profileTab" onclick="switchTab('profileTab', this); return false;">
+            <i class="bi bi-person"></i>
+            我的
+        </a>
+    </nav>
+    
+    <script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let allRecords = [];
+        let currentFilter = 'all';
+        
+        function switchTab(tabId, el) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            el.classList.add('active');
+        }
+        
+        function setFilter(filter, event) {
+            event.preventDefault();
+            currentFilter = filter;
+            document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+            event.target.classList.add('active');
+            filterRecords();
+        }
+        
+        function filterRecords() {
+            const searchText = document.getElementById('searchInput').value.toLowerCase();
+            let filtered = allRecords;
+            
+            if (currentFilter !== 'all') {
+                if (currentFilter === 'overdue') {
+                    filtered = filtered.filter(r => r.days_overdue > 0);
+                } else {
+                    filtered = filtered.filter(r => r.status === currentFilter);
+                }
+            }
+            
+            if (searchText) {
+                filtered = filtered.filter(r => 
+                    r.product_name.toLowerCase().includes(searchText) ||
+                    r.control_reason.toLowerCase().includes(searchText)
+                );
+            }
+            
+            renderRecords(filtered);
+        }
+        
+        function renderRecords(records) {
+            const container = document.getElementById('recordsList');
+            
+            if (records.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="bi bi-inbox"></i>
+                        <p>暂无记录</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = records.map(record => {
+                const statusClass = record.status === '待处理' ? 'pending' : 
+                                   record.status === '处理中' ? 'processing' : 'completed';
+                const statusText = record.status === '待处理' ? '待处理' : 
+                                  record.status === '处理中' ? '处理中' : '已完成';
+                
+                let urgencyClass = '';
+                if (record.days_overdue > 10) urgencyClass = 'urgency-high';
+                else if (record.days_overdue > 5) urgencyClass = 'urgency-medium';
+                else if (record.days_overdue > 0) urgencyClass = 'urgency-low';
+                
+                const progress = record.quantity > 0 ? 
+                    Math.round((record.handled_quantity / record.quantity) * 100) : 0;
+                
+                return `
+                    <div class="record-item ${statusClass} ${urgencyClass}">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="product-name">${record.product_name}</div>
+                            <span class="status-badge ${statusClass}">${statusText}</span>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-item"><i class="bi bi-tag"></i> ${record.control_reason}</div>
+                            <div class="info-item"><i class="bi bi-box"></i> ${record.quantity}箱</div>
+                        </div>
+                        <div class="info-row">
+                            ${record.deadline ? `<div class="info-item"><i class="bi bi-calendar"></i> ${record.deadline}</div>` : ''}
+                            ${record.days_overdue > 0 ? `<span class="overdue-tag">超期${record.days_overdue}天</span>` : ''}
+                        </div>
+                        ${record.status !== '已完成' && record.quantity > 0 ? `
+                            <div class="progress-bar-mobile">
+                                <div class="progress-fill" style="width: ${progress}%"></div>
+                            </div>
+                            <div class="progress-text">${record.handled_quantity || 0} / ${record.quantity} (${progress}%)</div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function refreshData() {
+            loadStatistics();
+            loadRecords();
+        }
+        
+        function loadStatistics() {
+            fetch('/api/statistics')
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('pendingQty').textContent = data.pending_count || 0;
+                    document.getElementById('processingQty').textContent = data.processing_count || 0;
+                    document.getElementById('completedQty').textContent = data.completed_count || 0;
+                    document.getElementById('overdueCount').textContent = data.overdue_count || 0;
+                    
+                    const rate = data.completion_rate || 0;
+                    document.getElementById('completionRate').textContent = rate + '%';
+                    document.getElementById('progressFill').style.width = rate + '%';
+                });
+        }
+        
+        function loadRecords() {
+            fetch('/api/records')
+                .then(r => r.json())
+                .then(data => {
+                    allRecords = data.map(r => {
+                        let days_overdue = 0;
+                        if (r.deadline) {
+                            const deadline = new Date(r.deadline);
+                            const today = new Date();
+                            const diff = (today - deadline) / (1000 * 60 * 60 * 24);
+                            days_overdue = Math.max(0, Math.floor(diff));
+                        }
+                        return {...r, days_overdue};
+                    });
+                    filterRecords();
+                });
+        }
+        
+        function updateDate() {
+            const now = new Date();
+            const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+            document.getElementById('currentDate').textContent = now.toLocaleDateString('zh-CN', options);
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            updateDate();
+            loadStatistics();
+            loadRecords();
+            
+            setInterval(() => {
+                const version = localStorage.getItem('guankong_data_version');
+                if (version && version !== window.lastDataVersion) {
+                    window.lastDataVersion = version;
+                    refreshData();
+                }
+            }, 3000);
+        });
+    </script>
+</body>
+</html>

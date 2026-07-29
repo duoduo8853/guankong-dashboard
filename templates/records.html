@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管制品台账</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; display: flex; }
+        .sidebar { width: 220px; background: linear-gradient(180deg, #1e3a5f 0%, #0f172a 100%); min-height: 100vh; padding: 24px 0; display: flex; flex-direction: column; }
+        .sidebar-header { color: white; font-size: 20px; font-weight: 700; padding: 0 24px 24px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 24px; }
+        .sidebar-header .icon { font-size: 24px; margin-right: 8px; }
+        .sidebar-menu { list-style: none; flex: 1; }
+        .sidebar-menu li { margin-bottom: 4px; }
+        .sidebar-menu li a { display: flex; align-items: center; padding: 14px 24px; color: rgba(255,255,255,0.7); text-decoration: none; font-size: 14px; border-left: 3px solid transparent; transition: all 0.3s ease; }
+        .sidebar-menu li a:hover { background: rgba(255,255,255,0.1); color: white; }
+        .sidebar-menu li a.active { background: rgba(59, 130, 246, 0.2); color: white; border-left-color: #3b82f6; }
+        .sidebar-menu li a .menu-icon { margin-right: 12px; font-size: 18px; }
+        .main-content { flex: 1; display: flex; flex-direction: column; }
+        .header { background: #1E3A5F; color: white; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 20px; font-weight: 600; }
+        .header-nav { display: flex; gap: 16px; background: rgba(255,255,255,0.1); padding: 8px 16px; border-radius: 8px; }
+        .header-nav a { color: rgba(255,255,255,0.8); text-decoration: none; font-size: 14px; padding: 6px 12px; border-radius: 4px; }
+        .header-nav a:hover { background: rgba(255,255,255,0.15); color: white; }
+        .header-nav a.active { background: rgba(255,255,255,0.2); color: white; }
+        .home-btn { 
+            position: fixed !important; 
+            top: 24px !important; 
+            right: 24px !important; 
+            padding: 12px 24px !important; 
+            border-radius: 40px !important; 
+            background: rgba(255,255,255,0.95) !important; 
+            backdrop-filter: blur(8px) !important; 
+            -webkit-backdrop-filter: blur(8px) !important; 
+            border: 1px solid rgba(0,0,0,0.1) !important; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15) !important; 
+            text-decoration: none !important; 
+            font-family: system-ui, -apple-system, sans-serif !important; 
+            font-weight: 600 !important; 
+            color: #1E3A5F !important; 
+            font-size: 14px !important; 
+            transition: all 0.2s ease !important; 
+            z-index: 9999 !important; 
+            display: block !important; 
+            cursor: pointer !important; 
+            min-width: 80px !important; 
+            text-align: center !important; 
+            line-height: 1.5 !important; 
+        }
+        .home-btn:hover { 
+            background: rgba(255,255,255,1) !important; 
+            box-shadow: 0 6px 24px rgba(0,0,0,0.2) !important; 
+            transform: translateY(-2px) !important; 
+        }
+        .container { padding: 24px; flex: 1; }
+        .search-bar { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); margin-bottom: 20px; }
+        .search-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; align-items: flex-end; }
+        .search-item { display: flex; flex-direction: column; gap: 8px; }
+        .search-item label { font-size: 13px; color: #555; font-weight: 500; }
+        .search-item select, .search-item input { 
+            padding: 10px 14px; 
+            border: 1px solid #d0d0d0; 
+            border-radius: 8px; 
+            font-size: 14px; 
+            min-width: 140px;
+            background: #fafafa;
+        }
+        .search-item select:focus, .search-item input:focus {
+            outline: none;
+            border-color: #1E3A5F;
+            background: white;
+        }
+        button { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; }
+        .btn-primary { background: #1E3A5F; color: white; }
+        .btn-primary:hover { background: #2d5a87; }
+        .btn-secondary { background: #f0f0f0; color: #333; }
+        .btn-secondary.active { background: #1E3A5F; color: white; }
+        .btn-add { background: #28a745; color: white; float: right; margin-bottom: 16px; }
+        .btn-add:hover { background: #218838; }
+        .btn-reset { 
+            background: #dc3545; 
+            color: white; 
+            float: right; 
+            margin-bottom: 16px; 
+            margin-right: 10px;
+        }
+        .btn-reset:hover { background: #c82333; }
+        .btn-delete-all { 
+            background: #dc3545; 
+            color: white; 
+            float: right; 
+            margin-bottom: 16px; 
+            margin-right: 10px;
+        }
+        .btn-delete-all:hover { background: #c82333; }
+        .btn-start-process {
+            background: #28a745;
+            color: white;
+            padding: 6px 12px;
+            font-size: 12px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+        }
+        .btn-start-process:hover {
+            background: #218838;
+        }
+        .btn-process {
+            background: #1E3A5F;
+            color: white;
+            padding: 6px 12px;
+            font-size: 12px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            margin-right: 8px;
+        }
+        .btn-process:hover {
+            background: #2d5a87;
+        }
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            min-width: 400px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .modal h3 {
+            margin-bottom: 16px;
+            color: #1E3A5F;
+        }
+        .modal input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+        .btn-cancel {
+            background: #f0f0f0;
+            color: #333;
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+        }
+        .btn-confirm {
+            background: #1E3A5F;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+        }
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); table-layout: fixed; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #f0f0f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        th { background: #f8f9fa; font-weight: 600; font-size: 13px; color: #333; }
+        td { font-size: 12px; color: #666; }
+        .status-pending { background: #fff3cd; color: #856404; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .status-processing { background: #cce5ff; color: #004085; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .status-completed { background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .progress-bar { height: 8px; background: #e0e0e0; border-radius: 4px; overflow: hidden; width: 100px; }
+        .progress-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+        .progress-pending { background: #ffc107; }
+        .progress-processing { background: #007bff; }
+        .progress-completed { background: #28a745; }
+        .action-links a { margin-right: 12px; text-decoration: none; font-size: 13px; color: #1E3A5F; }
+        .action-links a:hover { text-decoration: underline; }
+        .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 20px; }
+        .pagination button { padding: 6px 12px; }
+        .pagination .active { background: #1E3A5F; color: white; }
+        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+        .stat-card { background: white; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .stat-value { font-size: 24px; font-weight: 600; color: #1E3A5F; }
+        .stat-label { font-size: 12px; color: #666; margin-top: 4px; }
+        .overdue { color: #dc3545; }
+        .today-rate { color: #28a745; }
+        
+        .row-overdue {
+            background-color: #fef2f2 !important;
+        }
+        
+        .row-overdue-high {
+            border-left: 4px solid #dc3545 !important;
+            box-shadow: inset 4px 0 0 #dc3545;
+        }
+        
+        .row-overdue-medium {
+            border-left: 4px solid #fd7e14 !important;
+            box-shadow: inset 4px 0 0 #fd7e14;
+        }
+        
+        .overdue-days {
+            font-weight: 600;
+        }
+        
+        .overdue-days-high {
+            color: #dc3545;
+            background: rgba(220, 53, 69, 0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+        
+        .overdue-days-medium {
+            color: #fd7e14;
+            background: rgba(253, 126, 20, 0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+        
+        .overdue-days-low {
+            color: #6c757d;
+            background: rgba(108, 117, 125, 0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+            </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header"><span class="icon">📦</span><span>管制品追踪</span></div>
+        <ul class="sidebar-menu">
+            <li><a href="/dashboard"><span class="menu-icon">📊</span>仪表盘</a></li>
+            <li><a href="/records" class="active"><span class="menu-icon">📋</span>管制品台账</a></li>
+            <li><a href="/add"><span class="menu-icon">➕</span>新增记录</a></li>
+            <li><a href="/import"><span class="menu-icon">📥</span>数据导入</a></li>
+            <li><a href="/report"><span class="menu-icon">📈</span>报表分析</a></li>
+            <li><a href="/admin"><span class="menu-icon">⚙️</span>系统管理</a></li>
+        </ul>
+    </div>
+    
+    <div class="main-content">
+        <div class="header">
+            <h1>📦 管制品台账</h1>
+            <div class="header-nav">
+                <a href="/dashboard">仪表盘</a>
+                <a href="/records" class="active">管制品台账</a>
+                <a href="/report">报表分析</a>
+                <a href="/admin">系统管理</a>
+            </div>
+        </div>
+        
+        <a href="/" class="home-btn">← 主页</a>
+        
+        <div class="container">
+        <div class="stats" id="stats">
+            <div class="stat-card"><div class="stat-value">--</div><div class="stat-label">待处理总数</div></div>
+            <div class="stat-card"><div class="stat-value overdue">--</div><div class="stat-label">超期项目数</div></div>
+            <div class="stat-card"><div class="stat-value">--</div><div class="stat-label">今日新增</div></div>
+            <div class="stat-card"><div class="stat-value today-rate">--</div><div class="stat-label">处理率</div></div>
+        </div>
+
+        <button class="btn-add" onclick="location.href='/add'">+ 新增管制品记录</button>
+        <button class="btn-reset" onclick="resetAllProgress()">🔄 重置处理进度</button>
+        <button class="btn-delete-all" onclick="deleteAllRecords()">🗑️ 删除全部记录</button>
+        <div style="clear: both;"></div>
+        
+        <div class="search-bar">
+            <div class="search-row">
+                <div class="search-item">
+                    <label>状态</label>
+                    <select id="status-filter">
+                        <option value="all">全部</option>
+                        <option value="待处理">待处理</option>
+                        <option value="处理中">处理中</option>
+                        <option value="已完成">已完成</option>
+                    </select>
+                </div>
+                <div class="search-item">
+                    <label>超期状态</label>
+                    <select id="overdue-filter">
+                        <option value="all">全部</option>
+                        <option value="not_overdue">未超期</option>
+                        <option value="overdue_7">超期 ≤ 7天</option>
+                        <option value="overdue_30">超期 8~30天</option>
+                        <option value="overdue_more">超期 &gt; 30天</option>
+                    </select>
+                </div>
+                <div class="search-item">
+                    <label>规格</label>
+                    <select id="spec-filter">
+                        <option value="all">全部</option>
+                    </select>
+                </div>
+                <div class="search-item">
+                    <label>口味</label>
+                    <select id="flavor-filter">
+                        <option value="all">全部</option>
+                    </select>
+                </div>
+                <div class="search-item">
+                    <label>处理人</label>
+                    <select id="handler-filter">
+                        <option value="all">全部</option>
+                    </select>
+                </div>
+            </div>
+            <div class="search-row" style="margin-top: 12px;">
+                <div class="search-item">
+                    <label>产品搜索</label>
+                    <input type="text" id="product-search" placeholder="输入产品名称关键词">
+                </div>
+                <div class="search-item">
+                    <label></label>
+                    <button class="btn-primary" onclick="loadRecords()">查询</button>
+                </div>
+                <div class="search-item">
+                    <label></label>
+                    <button class="btn-secondary" id="btn-today-deadline" onclick="toggleTodayDeadline()">📅 今日到期</button>
+                </div>
+            </div>
+        </div>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 90px;">生产班次</th>
+                    <th style="width: 250px;">产品品项</th>
+                    <th style="width: 80px;">管制原因</th>
+                    <th style="width: 60px;">数量</th>
+                    <th style="width: 60px;">已处理</th>
+                    <th style="width: 80px;">进度</th>
+                    <th style="width: 70px;">处理人</th>
+                    <th style="width: 60px;">状态</th>
+                    <th style="width: 90px;">处理期限</th>
+                    <th style="width: 70px;">超期天数</th>
+                    <th style="width: 180px;">操作</th>
+                </tr>
+            </thead>
+            <tbody id="records-table">
+            </tbody>
+        </table>
+        
+        <div class="pagination" id="pagination"></div>
+    </div>
+
+    <div class="modal-overlay" id="process-modal">
+        <div class="modal">
+            <h3>处理记录</h3>
+            <input type="hidden" id="process-modal-id">
+            <div>
+                <label>本次处理数量（最大 <span id="process-max">0</span> 件）</label>
+                <input type="number" id="process-quantity" placeholder="请输入处理数量">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closeProcessModal()">取消</button>
+                <button class="btn-confirm" onclick="submitProcess()">确认处理</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        let totalPages = 1;
+
+        function loadRecords() {
+            const status = document.getElementById('status-filter').value;
+            const overdue = document.getElementById('overdue-filter').value;
+            const spec = document.getElementById('spec-filter').value;
+            const flavor = document.getElementById('flavor-filter').value;
+            const handler = document.getElementById('handler-filter').value;
+            const productName = document.getElementById('product-search').value;
+            
+            let url = `/api/records?page=${currentPage}`;
+            if (status !== 'all') url += `&status=${status}`;
+            if (overdue !== 'all') url += `&overdue=${overdue}`;
+            if (spec !== 'all') url += `&spec=${spec}`;
+            if (flavor !== 'all') url += `&flavor=${flavor}`;
+            if (handler !== 'all') url += `&handler_name=${handler}`;
+            if (productName) url += `&product_name=${encodeURIComponent(productName)}`;
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            const deadline = urlParams.get('deadline');
+            if (deadline) url += `&deadline=${deadline}`;
+            
+            fetch(url)
+                .then(res => res.json())
+                .then(data => {
+                    renderRecords(data.records);
+                    renderStatistics(data.statistics);
+                    renderPagination(data.total);
+                })
+                .catch(err => console.error(err));
+        }
+        
+        function toggleTodayDeadline() {
+            const btn = document.getElementById('btn-today-deadline');
+            const urlParams = new URLSearchParams(window.location.search);
+            const currentDeadline = urlParams.get('deadline');
+            const today = new Date().toISOString().split('T')[0];
+            
+            if (currentDeadline === today) {
+                urlParams.delete('deadline');
+                btn.classList.remove('active');
+            } else {
+                urlParams.set('deadline', today);
+                btn.classList.add('active');
+            }
+            
+            window.location.href = `/records?${urlParams.toString()}`;
+        }
+
+        function loadStatistics() {
+            fetch('/api/statistics')
+                .then(res => res.json())
+                .then(data => {
+                    document.querySelector('.stats .stat-card:nth-child(1) .stat-value').textContent = data.pending_count;
+                    document.querySelector('.stats .stat-card:nth-child(2) .stat-value').textContent = data.overdue_count;
+                    document.querySelector('.stats .stat-card:nth-child(3) .stat-value').textContent = data.today_added;
+                    document.querySelector('.stats .stat-card:nth-child(4) .stat-value').textContent = data.completion_rate + '%';
+                });
+        }
+
+        function loadOptions() {
+            fetch('/api/options')
+                .then(res => res.json())
+                .then(data => {
+                    const specFilter = document.getElementById('spec-filter');
+                    data.specs.forEach(spec => {
+                        const option = document.createElement('option');
+                        option.value = spec;
+                        option.textContent = spec;
+                        specFilter.appendChild(option);
+                    });
+                    
+                    const flavorFilter = document.getElementById('flavor-filter');
+                    data.flavors.forEach(flavor => {
+                        const option = document.createElement('option');
+                        option.value = flavor;
+                        option.textContent = flavor;
+                        flavorFilter.appendChild(option);
+                    });
+                });
+            
+            fetch('/api/handlers')
+                .then(res => res.json())
+                .then(handlers => {
+                    const handlerFilter = document.getElementById('handler-filter');
+                    handlers.forEach(handler => {
+                        const option = document.createElement('option');
+                        option.value = handler;
+                        option.textContent = handler;
+                        handlerFilter.appendChild(option);
+                    });
+                });
+        }
+
+        function renderRecords(records) {
+            const tbody = document.getElementById('records-table');
+            tbody.innerHTML = '';
+            
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            records.forEach(record => {
+                const row = document.createElement('tr');
+                const progress = record.quantity > 0 ? Math.round((record.handled_quantity / record.quantity) * 100) : 0;
+                
+                const deadlineDate = new Date(record.deadline);
+                deadlineDate.setHours(0, 0, 0, 0);
+                const timeDiff = today - deadlineDate;
+                const overdueDays = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+                
+                let rowClass = '';
+                let overdueClass = 'overdue-days-low';
+                let overdueText = '';
+                
+                if (overdueDays > 0) {
+                    rowClass = 'row-overdue';
+                    if (overdueDays > 30) {
+                        rowClass += ' row-overdue-high';
+                        overdueClass = 'overdue-days-high';
+                    } else {
+                        rowClass += ' row-overdue-medium';
+                        overdueClass = 'overdue-days-medium';
+                    }
+                    overdueText = `+${overdueDays}天`;
+                } else if (overdueDays === 0) {
+                    overdueText = '今天';
+                } else {
+                    overdueText = `${Math.abs(overdueDays)}天后`;
+                }
+                
+                row.className = rowClass;
+                
+                let statusClass = 'status-pending';
+                let progressClass = 'progress-pending';
+                if (record.status === '处理中') {
+                    statusClass = 'status-processing';
+                    progressClass = 'progress-processing';
+                } else if (record.status === '已完成') {
+                    statusClass = 'status-completed';
+                    progressClass = 'progress-completed';
+                }
+                
+                let actionButtons = `<a href="/add?id=${record.id}">编辑</a>
+                        <a href="javascript:deleteRecord(${record.id})">删除</a>`;
+                
+                const handlerName = record.handler_name || record.handle_dept || '-';
+                
+                row.innerHTML = `
+                    <td>${record.production_date || '-'}</td>
+                    <td>${record.product_name}</td>
+                    <td>${record.control_reason}</td>
+                    <td>${record.quantity}</td>
+                    <td>${record.handled_quantity}</td>
+                    <td>
+                        <div class="progress-bar"><div class="progress-fill ${progressClass}" style="width: ${progress}%"></div></div>
+                        <div style="font-size: 11px; color: #999; margin-top: 4px;">${progress}%</div>
+                    </td>
+                    <td>${handlerName}</td>
+                    <td><span class="${statusClass}">${record.status}</span></td>
+                    <td>${record.deadline}</td>
+                    <td class="overdue-days ${overdueClass}">${overdueText}</td>
+                    <td class="action-links">${actionButtons}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+        
+        function showProcessModal(id, maxQuantity) {
+            document.getElementById('process-modal-id').value = id;
+            document.getElementById('process-quantity').value = '';
+            document.getElementById('process-max').textContent = maxQuantity;
+            document.getElementById('process-modal').classList.add('active');
+        }
+        
+        function closeProcessModal() {
+            document.getElementById('process-modal').classList.remove('active');
+        }
+        
+        function submitProcess() {
+            const id = document.getElementById('process-modal-id').value;
+            const quantity = parseInt(document.getElementById('process-quantity').value);
+            const maxQuantity = parseInt(document.getElementById('process-max').textContent);
+            
+            if (!quantity || quantity <= 0 || quantity > maxQuantity) {
+                alert(`请输入有效的处理数量（1-${maxQuantity}）`);
+                return;
+            }
+            
+            fetch('/api/records/process', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, quantity })
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert(data.message);
+                closeProcessModal();
+                loadRecords();
+                loadStatistics();
+            })
+            .catch(err => {
+                console.error(err);
+                alert('操作失败');
+            });
+        }
+
+        function renderStatistics(stats) {
+        }
+
+        function renderPagination(total) {
+            const pagination = document.getElementById('pagination');
+            pagination.innerHTML = '';
+            
+            totalPages = Math.ceil(total / 10);
+            
+            if (currentPage > 1) {
+                const prevBtn = document.createElement('button');
+                prevBtn.textContent = '上一页';
+                prevBtn.onclick = () => { currentPage--; loadRecords(); };
+                pagination.appendChild(prevBtn);
+            }
+            
+            for (let i = 1; i <= Math.min(5, totalPages); i++) {
+                const pageBtn = document.createElement('button');
+                pageBtn.textContent = i;
+                if (i === currentPage) pageBtn.className = 'active';
+                pageBtn.onclick = () => { currentPage = i; loadRecords(); };
+                pagination.appendChild(pageBtn);
+            }
+            
+            if (currentPage < totalPages) {
+                const nextBtn = document.createElement('button');
+                nextBtn.textContent = '下一页';
+                nextBtn.onclick = () => { currentPage++; loadRecords(); };
+                pagination.appendChild(nextBtn);
+            }
+        }
+
+        function deleteRecord(id) {
+            if (confirm('确定要删除这条记录吗？')) {
+                fetch(`/api/records/${id}`, { method: 'DELETE' })
+                    .then(() => {
+                        loadRecords();
+                        loadStatistics();
+                    })
+                    .catch(err => console.error(err));
+            }
+        }
+
+        function deleteAllRecords() {
+            if (confirm('确定要删除所有记录吗？此操作不可恢复！')) {
+                fetch('/api/records/delete-all', { method: 'DELETE' })
+                    .then(res => res.json())
+                    .then(data => {
+                        alert(data.message);
+                        loadRecords();
+                        loadStatistics();
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        alert('删除失败');
+                    });
+            }
+        }
+        
+        function resetAllProgress() {
+            if (confirm('确定要重置所有处理进度吗？这将使所有记录恢复到"待处理"状态。')) {
+                fetch('/api/records/reset-progress', { method: 'POST' })
+                    .then(res => res.json())
+                    .then(data => {
+                        alert(data.message);
+                        loadRecords();
+                        loadStatistics();
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        alert('重置失败，请重试');
+                    });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadRecords();
+            loadStatistics();
+            loadOptions();
+            
+            const btn = document.getElementById('btn-today-deadline');
+            const urlParams = new URLSearchParams(window.location.search);
+            const deadline = urlParams.get('deadline');
+            const today = new Date().toISOString().split('T')[0];
+            if (deadline === today) {
+                btn.classList.add('active');
+            }
+        });
+    </script>
+</body>
+</html>

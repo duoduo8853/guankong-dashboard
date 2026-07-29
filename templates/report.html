@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>报表分析 - 管制品追踪系统</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; display: flex; }
+        .sidebar { width: 220px; background: linear-gradient(180deg, #1e3a5f 0%, #0f172a 100%); min-height: 100vh; padding: 24px 0; display: flex; flex-direction: column; }
+        .sidebar-header { color: white; font-size: 20px; font-weight: 700; padding: 0 24px 24px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 24px; }
+        .sidebar-header .icon { font-size: 24px; margin-right: 8px; }
+        .sidebar-menu { list-style: none; flex: 1; }
+        .sidebar-menu li { margin-bottom: 4px; }
+        .sidebar-menu li a { display: flex; align-items: center; padding: 14px 24px; color: rgba(255,255,255,0.7); text-decoration: none; font-size: 14px; border-left: 3px solid transparent; transition: all 0.3s ease; }
+        .sidebar-menu li a:hover { background: rgba(255,255,255,0.1); color: white; }
+        .sidebar-menu li a.active { background: rgba(59, 130, 246, 0.2); color: white; border-left-color: #3b82f6; }
+        .sidebar-menu li a .menu-icon { margin-right: 12px; font-size: 18px; }
+        .main-content { flex: 1; display: flex; flex-direction: column; }
+        .header { background: #1E3A5F; color: white; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 20px; font-weight: 600; }
+        .header-right { display: flex; align-items: center; gap: 16px; }
+        .header-date { font-size: 14px; color: rgba(255,255,255,0.8); }
+        .header-actions { display: flex; gap: 8px; }
+        button { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s; }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-export { background: #10b981; color: white; }
+        .btn-export:hover { background: #059669; }
+        .container { padding: 20px; flex: 1; }
+        
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+        .stat-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+        .stat-icon { font-size: 24px; margin-bottom: 8px; }
+        .stat-value { font-size: 28px; font-weight: 700; color: #1e293b; }
+        .stat-unit { font-size: 14px; color: #64748b; margin-left: 4px; }
+        .stat-label { font-size: 13px; color: #64748b; margin-top: 4px; }
+        .stat-trend { display: flex; align-items: center; gap: 4px; font-size: 12px; margin-top: 6px; }
+        .trend-up { color: #10b981; }
+        .trend-down { color: #ef4444; }
+        .trend-same { color: #64748b; }
+        .stat-mini-chart { height: 30px; margin-top: 8px; display: flex; align-items: flex-end; gap: 3px; }
+        .mini-bar { background: #e2e8f0; border-radius: 2px; }
+        .mini-bar.active { background: #3b82f6; }
+        .progress-ring { width: 40px; height: 40px; border-radius: 50%; background: conic-gradient(#ef4444 0deg, #e2e8f0 360deg); display: flex; align-items: center; justify-content: center; margin-left: auto; }
+        .progress-inner { width: 32px; height: 32px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color: #ef4444; }
+        
+        .charts-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 20px; }
+        .chart-section { background: white; padding: 24px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+        .chart-title { font-size: 16px; font-weight: 600; color: #1e293b; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+        .chart-subtitle { font-size: 12px; color: #64748b; margin-top: 4px; }
+        
+        .pareto-container { position: relative; min-height: 340px; }
+        .pareto-chart { display: flex; align-items: flex-end; gap: 4px; height: 180px; padding: 10px 0 10px; border-bottom: 2px solid #e2e8f0; margin-bottom: 10px; position: relative; }
+        .pareto-bar-item { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 0; height: 100%; cursor: pointer; transition: transform 0.2s; }
+        .pareto-bar-item:hover { transform: scale(1.05); }
+        .pareto-bar-wrapper { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; position: relative; }
+        .pareto-bar-area { position: absolute; bottom: 0; width: 100%; display: flex; justify-content: center; }
+        .pareto-bar { width: 100%; max-width: 45px; min-height: 2px; border-radius: 4px 4px 0 0; }
+        .pareto-bar-value { font-size: 12px; font-weight: 700; color: #1e293b; white-space: nowrap; margin-bottom: 6px; text-align: center; }
+        .pareto-cum-percent { font-size: 10px; color: #f97316; font-weight: 600; text-align: center; }
+        .pareto-labels-row { display: flex; gap: 4px; padding: 0 10px; }
+        .pareto-label-item { flex: 1; display: flex; flex-direction: column; align-items: center; min-width: 0; }
+        .pareto-bar-label { font-size: 11px; color: #475569; text-align: center; word-wrap: break-word; max-width: 70px; line-height: 1.3; }
+        .pareto-bar-label:first-child { margin-top: 0; }
+        .pareto-line-container { position: absolute; top: 0; left: 0; right: 0; bottom: 30px; pointer-events: none; }
+        .pareto-line-svg { width: 100%; height: 100%; }
+        .pareto-80-line { position: absolute; left: 0; right: 0; height: 2px; background: transparent; border-top: 2px dashed #ef4444; }
+        .pareto-80-label { position: absolute; right: 8px; font-size: 11px; color: #ef4444; font-weight: 600; background: white; padding: 0 4px; }
+        .pareto-legend { display: flex; gap: 20px; justify-content: center; margin-top: 16px; font-size: 12px; }
+        .pareto-legend-item { display: flex; align-items: center; gap: 6px; }
+        .pareto-legend-bar { width: 16px; height: 10px; border-radius: 2px; }
+        .pareto-legend-line { width: 20px; height: 2px; background: #f97316; }
+        .pareto-tooltip { display: none; position: fixed; background: #1e293b; color: white; padding: 12px 16px; border-radius: 8px; font-size: 13px; z-index: 1000; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+        .pareto-tooltip-title { font-weight: 600; margin-bottom: 6px; font-size: 14px; }
+        .pareto-tooltip-row { display: flex; justify-content: space-between; gap: 16px; margin: 2px 0; }
+        .pareto-tooltip-label { color: #94a3b8; }
+        .pareto-tooltip-value { font-weight: 500; }
+        
+        .pareto-detail-panel { display: none; background: #f8fafc; border-radius: 8px; padding: 16px; margin-top: 16px; border: 1px solid #e2e8f0; }
+        .pareto-detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .pareto-detail-title { font-size: 15px; font-weight: 600; color: #1e293b; }
+        .pareto-detail-close { background: none; border: none; font-size: 20px; color: #64748b; cursor: pointer; }
+        .pareto-detail-products { font-size: 13px; color: #64748b; margin-bottom: 12px; }
+        .pareto-detail-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .pareto-detail-table th { text-align: left; padding: 8px 12px; background: #f1f5f9; font-weight: 600; color: #475569; }
+        .pareto-detail-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
+        
+        .duration-container { }
+        .duration-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #f8fafc; border-radius: 6px; margin-bottom: 12px; }
+        .duration-header span { font-size: 13px; color: #64748b; font-weight: 500; }
+        .duration-items { }
+        .duration-item { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid #f1f5f9; }
+        .duration-item:last-child { border-bottom: none; }
+        .duration-dept { font-size: 14px; font-weight: 500; color: #1e293b; width: 60px; }
+        .duration-bar-wrapper { flex: 1; height: 16px; background: #f1f5f9; border-radius: 8px; position: relative; overflow: hidden; }
+        .duration-bar { height: 100%; background: linear-gradient(90deg, #22c55e, #4ade80); border-radius: 8px; }
+        .duration-bar.warning { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+        .duration-bar.danger { background: linear-gradient(90deg, #ef4444, #f87171); }
+        .duration-target-line { position: absolute; top: 0; width: 2px; height: 100%; background: #f59e0b; }
+        .duration-value { font-size: 14px; font-weight: 600; color: #1e293b; width: 70px; text-align: right; }
+        .duration-count { font-size: 12px; color: #94a3b8; }
+        
+        .empty-state { text-align: center; padding: 40px 20px; background: #fafafa; border-radius: 10px; }
+        .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+        .empty-title { font-size: 16px; font-weight: 600; color: #475569; margin-bottom: 8px; }
+        .empty-desc { font-size: 14px; color: #64748b; line-height: 1.6; }
+        .empty-hint { font-size: 13px; color: #94a3b8; margin-top: 12px; }
+        .empty-btn { margin-top: 16px; }
+        
+        .daily-report { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); overflow: hidden; }
+        .daily-report-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid #f1f5f9; }
+        .daily-report-title { display: flex; align-items: center; gap: 8px; }
+        .daily-report-title h2 { font-size: 18px; font-weight: 600; color: #1e293b; }
+        .daily-report-date { font-size: 14px; color: #64748b; }
+        .daily-report-actions { display: flex; gap: 8px; }
+        
+        .daily-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; padding: 20px 24px; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); }
+        .summary-card { background: white; padding: 16px; border-radius: 8px; text-align: center; }
+        .summary-icon { font-size: 20px; margin-bottom: 8px; }
+        .summary-value { font-size: 24px; font-weight: 700; color: #1e293b; }
+        .summary-label { font-size: 12px; color: #64748b; margin-top: 4px; }
+        .summary-sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+        
+        .daily-section { padding: 20px 24px; border-bottom: 1px solid #f1f5f9; }
+        .daily-section:last-child { border-bottom: none; }
+        .daily-section-title { font-size: 15px; font-weight: 600; color: #1e293b; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .product-table { width: 100%; border-collapse: collapse; }
+        .product-table th { text-align: left; padding: 12px 16px; background: #f8fafc; font-size: 13px; font-weight: 600; color: #64748b; }
+        .product-table td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+        .product-table tr:hover td { background: #fafafa; }
+        .product-name { color: #1e293b; font-weight: 500; }
+        .overdue-high { color: #ef4444; font-weight: 700; }
+        .overdue-medium { color: #f59e0b; font-weight: 600; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        .status-dot.high { background: #ef4444; }
+        .status-dot.medium { background: #f59e0b; }
+        .view-all-link { text-align: right; margin-top: 12px; font-size: 13px; color: #3b82f6; cursor: pointer; }
+        .view-all-link:hover { text-decoration: underline; }
+        
+        .warning-section { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 16px 24px; display: flex; align-items: flex-start; gap: 12px; }
+        .warning-icon { font-size: 20px; }
+        .warning-text { flex: 1; }
+        .warning-title { font-size: 14px; font-weight: 600; color: #92400e; margin-bottom: 4px; }
+        .warning-desc { font-size: 13px; color: #b45309; }
+        
+        .tooltip { position: absolute; background: #1e293b; color: white; padding: 10px 14px; border-radius: 6px; font-size: 13px; z-index: 1000; pointer-events: none; display: none; }
+        
+        @media (max-width: 1024px) {
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .charts-grid { grid-template-columns: 1fr; }
+            .daily-summary { grid-template-columns: repeat(2, 1fr); }
+        }
+        
+        @media (max-width: 640px) {
+            .stats-grid { grid-template-columns: 1fr; }
+            .daily-summary { grid-template-columns: 1fr; }
+            .header { flex-direction: column; gap: 12px; align-items: flex-start; }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header"><span class="icon">📦</span><span>管制品追踪</span></div>
+        <ul class="sidebar-menu">
+            <li><a href="/dashboard"><span class="menu-icon">📊</span>仪表盘</a></li>
+            <li><a href="/records"><span class="menu-icon">📋</span>管制品台账</a></li>
+            <li><a href="/add"><span class="menu-icon">➕</span>新增记录</a></li>
+            <li><a href="/import"><span class="menu-icon">📥</span>数据导入</a></li>
+            <li><a href="/report" class="active"><span class="menu-icon">📈</span>报表分析</a></li>
+            <li><a href="/admin"><span class="menu-icon">⚙️</span>系统管理</a></li>
+        </ul>
+    </div>
+    
+    <div class="main-content">
+        <div class="header">
+            <h1>📊 报表分析</h1>
+            <div class="header-right">
+                <div class="header-date" id="report-date">2026-06</div>
+                <div class="header-actions">
+                    <button class="btn-primary" id="query-btn">查询</button>
+                    <button class="btn-export" id="export-btn">导出</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="container">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">📊</div>
+                    <div><span class="stat-value" id="total-count">--</span><span class="stat-unit">条</span></div>
+                    <div class="stat-label">总记录数</div>
+                    <div class="stat-trend" id="monthly-trend">📈 数据加载中...</div>
+                    <div class="stat-mini-chart" id="trend-chart"></div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon">📦</div>
+                    <div><span class="stat-value" id="pending-qty">--</span><span class="stat-unit">件</span></div>
+                    <div class="stat-label">待处理数量</div>
+                    <div class="stat-trend trend-up" id="storage-percent">📈 处理人分布</div>
+                    <div class="stat-trend" style="color: #ef4444;" id="overdue-info">⚠️ 超期 --条 (--%)</div>
+                </div>
+                
+                <div class="stat-card" style="display: flex; justify-content: space-between;">
+                    <div>
+                        <div class="stat-icon">✅</div>
+                        <div><span class="stat-value" id="process-rate">--</span><span class="stat-unit">%</span></div>
+                        <div class="stat-label">处理率</div>
+                        <div class="stat-trend trend-same">← 昨日 0%</div>
+                        <div class="stat-label" style="font-size: 11px; color: #ef4444;">目标 ≥85%</div>
+                    </div>
+                    <div class="progress-ring" id="progress-ring"></div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon">⏱️</div>
+                    <div><span class="stat-value" id="avg-duration">--</span><span class="stat-unit">小时</span></div>
+                    <div class="stat-label">平均处理时长</div>
+                    <div class="stat-trend trend-down">↓ 同比上周 -2.1h</div>
+                    <div class="stat-label" style="font-size: 11px; color: #10b981;">✅ 目标 ≤48h</div>
+                </div>
+            </div>
+            
+            <div class="charts-grid">
+                <div class="chart-section">
+                    <div class="chart-title">📈 管制原因分布（帕累托）</div>
+                    <div class="chart-subtitle">按箱数降序排列 | 折线表示累计百分比</div>
+                    <div class="pareto-container" id="pareto-container">
+                        <div class="pareto-chart" id="pareto-chart"></div>
+                        <div class="pareto-80-line" id="pareto-80-line" style="display: none;">
+                            <span class="pareto-80-label">80%临界线</span>
+                        </div>
+                        <div class="pareto-legend">
+                            <div class="pareto-legend-item">
+                                <div class="pareto-legend-bar" style="background: linear-gradient(180deg, #2563eb, #60a5fa);"></div>
+                                <span>数量（箱）</span>
+                            </div>
+                            <div class="pareto-legend-item">
+                                <div class="pareto-legend-line"></div>
+                                <span>累计百分比</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="pareto-detail-panel" id="pareto-detail-panel">
+                        <div class="pareto-detail-header">
+                            <span class="pareto-detail-title" id="pareto-detail-title"></span>
+                            <button class="pareto-detail-close" onclick="closeParetoDetail()">&times;</button>
+                        </div>
+                        <div class="pareto-detail-products" id="pareto-detail-products"></div>
+                        <table class="pareto-detail-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>产品名称</th>
+                                    <th>数量</th>
+                                    <th>占比</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pareto-detail-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="chart-section">
+                    <div class="chart-title">⏱️ 各部门平均处理时长</div>
+                    <div class="duration-container" id="duration-container"></div>
+                </div>
+            </div>
+            
+            <div class="daily-report">
+                <div class="daily-report-header">
+                    <div class="daily-report-title">
+                        <h2>📰 今日日报</h2>
+                        <span class="daily-report-date" id="daily-report-date"></span>
+                    </div>
+                    <div class="daily-report-actions">
+                        <button class="btn-secondary" style="background: #f1f5f9; color: #475569;">导出PDF</button>
+                        <button class="btn-secondary" style="background: #f1f5f9; color: #475569;">打印</button>
+                    </div>
+                </div>
+                
+                <div class="daily-summary">
+                    <div class="summary-card">
+                        <div class="summary-icon">📦</div>
+                        <div class="summary-value" id="daily-pending-count">--</div>
+                        <div class="summary-label">待处理</div>
+                        <div class="summary-sub" id="daily-pending-qty">-- 件</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-icon">✅</div>
+                        <div class="summary-value" id="daily-completed-count">--</div>
+                        <div class="summary-label">已处理</div>
+                        <div class="summary-sub" id="daily-completed-qty">-- 件</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-icon">⏰</div>
+                        <div class="summary-value" id="daily-rate">--</div>
+                        <div class="summary-label">处理率</div>
+                        <div class="summary-sub" id="daily-rate-change">--</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-icon">🔥</div>
+                        <div class="summary-value" id="daily-overdue-count">--</div>
+                        <div class="summary-label">超期</div>
+                        <div class="summary-sub" id="daily-overdue-rate">--</div>
+                    </div>
+                </div>
+                
+                <div class="daily-section">
+                    <div class="daily-section-title">📋 待处理明细（TOP5 产品）</div>
+                    <table class="product-table" id="pending-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>产品名称</th>
+                                <th>记录数</th>
+                                <th>数量</th>
+                                <th>超期天数</th>
+                                <th>状态</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                    <div class="view-all-link" id="view-all-pending">查看全部 -- 条记录 →</div>
+                </div>
+                
+                <div class="daily-section" id="completed-section">
+                    <div class="daily-section-title">✅ 今日已处理</div>
+                    <div id="completed-content"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="tooltip" id="tooltip"></div>
+
+    <script>
+        function formatNumber(num) {
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        }
+        
+        function getOverdueDays(deadline) {
+            if (!deadline) return 0;
+            const today = new Date();
+            const deadlineDate = new Date(deadline);
+            const diffTime = today - deadlineDate;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            return Math.max(0, diffDays);
+        }
+        
+        function getOverdueLevel(days) {
+            if (days >= 30) return 'high';
+            if (days >= 7) return 'medium';
+            return 'low';
+        }
+        
+        function renderTrendChart(monthlyData) {
+            const chart = document.getElementById('trend-chart');
+            if (!monthlyData || monthlyData.length === 0) {
+                chart.innerHTML = '<div style="text-align: center; padding: 10px; color: #94a3b8; font-size: 12px;">暂无数据</div>';
+                return;
+            }
+            
+            const counts = monthlyData.map(item => item.count);
+            const max = Math.max(...counts);
+            chart.innerHTML = counts.map((val, idx) => 
+                `<div class="mini-bar ${idx === 0 ? 'active' : ''}" style="height: ${(val/max)*100}%; flex: 1;"></div>`
+            ).join('');
+        }
+        
+        function renderProgressRing(percentage) {
+            const ring = document.getElementById('progress-ring');
+            const color = percentage >= 85 ? '#22c55e' : percentage >= 50 ? '#f59e0b' : '#ef4444';
+            ring.style.background = `conic-gradient(${color} ${percentage * 3.6}deg, #e2e8f0 ${percentage * 3.6}deg)`;
+            ring.innerHTML = `<div class="progress-inner" style="color: ${color};">${percentage}%</div>`;
+        }
+        
+        function renderParetoChart(data) {
+            const chart = document.getElementById('pareto-chart');
+            
+            console.log('Pareto data:', data);
+            
+            if (!data || data.length === 0) {
+                chart.innerHTML = `
+                    <div class="empty-state" style="width: 100%; padding: 40px;">
+                        <div class="empty-icon">📊</div>
+                        <div class="empty-title">暂无数据</div>
+                        <div class="empty-desc">暂无管制原因分布数据</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            const total = data.reduce((sum, item) => sum + item.quantity, 0);
+            const maxQty = Math.max(...data.map(item => item.quantity));
+            
+            let cumulative = 0;
+            const itemsWithPercent = data.map(item => {
+                cumulative += item.quantity;
+                return {
+                    ...item,
+                    cumulativePercent: (cumulative / total * 100)
+                };
+            });
+            
+            const line80Index = itemsWithPercent.findIndex(item => item.cumulativePercent >= 80);
+            const line80Percent = line80Index >= 0 ? itemsWithPercent[line80Index].cumulativePercent : null;
+            
+            chart.innerHTML = itemsWithPercent.map((item, idx) => {
+                const barHeight = Math.max(2, (item.quantity / maxQty) * 130);
+                const colorOpacity = Math.max(0.4, 1 - (idx * 0.08));
+                return `
+                    <div class="pareto-bar-item" data-idx="${idx}" data-reason="${item.reason}">
+                        <div class="pareto-bar-value">${formatNumber(item.quantity)}</div>
+                        <div class="pareto-bar-wrapper">
+                            <div class="pareto-bar-area">
+                                <div class="pareto-bar" style="height: ${barHeight}px; background: linear-gradient(180deg, rgba(37, 99, 235, ${colorOpacity}), rgba(96, 165, 250, ${colorOpacity}));"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            const labelsRow = document.createElement('div');
+            labelsRow.className = 'pareto-labels-row';
+            labelsRow.innerHTML = itemsWithPercent.map((item, idx) => `
+                <div class="pareto-label-item">
+                    <div class="pareto-cum-percent">${item.cumulativePercent.toFixed(1)}%</div>
+                    <span class="pareto-bar-label">${item.reason}</span>
+                </div>
+            `).join('');
+            chart.parentNode.appendChild(labelsRow);
+            
+            if (line80Index >= 0) {
+                const line80El = document.getElementById('pareto-80-line');
+                line80El.style.display = 'block';
+                const linePosition = 100 - (line80Percent / 100) * 100;
+                line80El.style.top = linePosition + '%';
+            }
+            
+            const svgHeight = 220;
+            const linePoints = itemsWithPercent.map((item, idx) => {
+                const x = (idx + 0.5) * (100 / itemsWithPercent.length);
+                const y = 100 - (item.cumulativePercent / 100) * 100;
+                return `${x}%,${y}%`;
+            }).join(' ');
+            
+            function getSmoothPath(points) {
+                    if (points.length < 2) return '';
+                    let path = `M ${points[0].x} ${points[0].y}`;
+                    for (let i = 0; i < points.length - 1; i++) {
+                        const p0 = points[i - 1] || points[i];
+                        const p1 = points[i];
+                        const p2 = points[i + 1];
+                        const p3 = points[i + 2] || p2;
+                        
+                        const cp1x = p1.x + (p2.x - p0.x) / 6;
+                        const cp1y = p1.y + (p2.y - p0.y) / 6;
+                        const cp2x = p2.x - (p3.x - p1.x) / 6;
+                        const cp2y = p2.y - (p3.y - p1.y) / 6;
+                        
+                        path += ` C ${cp1x},${cp1y} ${cp2x},${cp2y} ${p2.x},${p2.y}`;
+                    }
+                    return path;
+                }
+                
+                const points = itemsWithPercent.map((item, idx) => ({
+                    x: (idx + 0.5) * (100 / itemsWithPercent.length),
+                    y: 100 - (item.cumulativePercent / 100) * 100
+                }));
+                
+                chart.innerHTML += `
+                <div class="pareto-line-container" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none;">
+                    <svg class="pareto-line-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <defs>
+                            <linearGradient id="paretoGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" style="stop-color:#ea580c;stop-opacity:1" />
+                                <stop offset="50%" style="stop-color:#fb923c;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#fdba74;stop-opacity:1" />
+                            </linearGradient>
+                            <filter id="lineShadow" x="-20%" y="-20%" width="140%" height="140%">
+                                <feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="#ea580c" flood-opacity="0.2"/>
+                            </filter>
+                        </defs>
+                        <path d="${getSmoothPath(points)}" fill="none" stroke="url(#paretoGradient)" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round" />
+                        ${points.map((point, idx) => `
+                            <circle cx="${point.x}" cy="${point.y}" r="1" fill="#ea580c" />
+                        `).join('')}
+                    </svg>
+                </div>
+            `;
+            
+            document.querySelectorAll('.pareto-bar-item').forEach(item => {
+                item.addEventListener('click', async () => {
+                    const reason = item.dataset.reason;
+                    const response = await fetch(`/api/reason-details?reason=${encodeURIComponent(reason)}`);
+                    const details = await response.json();
+                    showParetoDetail(reason, details, total);
+                });
+                
+                item.addEventListener('mouseenter', (e) => {
+                    const idx = parseInt(item.dataset.idx);
+                    const itemData = itemsWithPercent[idx];
+                    showParetoTooltip(e, itemData, total);
+                });
+                
+                item.addEventListener('mousemove', (e) => {
+                    moveParetoTooltip(e);
+                });
+                
+                item.addEventListener('mouseleave', () => {
+                    hideParetoTooltip();
+                });
+            });
+        }
+        
+        function showParetoTooltip(e, item, total) {
+            const tooltip = document.getElementById('tooltip');
+            tooltip.innerHTML = `
+                <div class="pareto-tooltip-title">${item.reason}</div>
+                <div class="pareto-tooltip-row">
+                    <span class="pareto-tooltip-label">发生数量：</span>
+                    <span class="pareto-tooltip-value">${formatNumber(item.quantity)} 箱</span>
+                </div>
+                <div class="pareto-tooltip-row">
+                    <span class="pareto-tooltip-label">累计百分比：</span>
+                    <span class="pareto-tooltip-value">${item.cumulativePercent.toFixed(1)}%</span>
+                </div>
+                <div class="pareto-tooltip-row">
+                    <span class="pareto-tooltip-label">涉及记录：</span>
+                    <span class="pareto-tooltip-value">${item.count} 条</span>
+                </div>
+            `;
+            tooltip.style.display = 'block';
+            moveParetoTooltip(e);
+        }
+        
+        function moveParetoTooltip(e) {
+            const tooltip = document.getElementById('tooltip');
+            tooltip.style.left = (e.clientX + 15) + 'px';
+            tooltip.style.top = (e.clientY + 15) + 'px';
+        }
+        
+        function hideParetoTooltip() {
+            document.getElementById('tooltip').style.display = 'none';
+        }
+        
+        function showParetoDetail(reason, details, total) {
+            const panel = document.getElementById('pareto-detail-panel');
+            const title = document.getElementById('pareto-detail-title');
+            const products = document.getElementById('pareto-detail-products');
+            const tbody = document.getElementById('pareto-detail-tbody');
+            
+            title.textContent = reason;
+            products.textContent = `涉及 ${details.total_records} 条记录，共 ${formatNumber(details.total_quantity)} 箱`;
+            
+            tbody.innerHTML = details.products.map((p, idx) => `
+                <tr>
+                    <td>${idx + 1}</td>
+                    <td>${p.name}</td>
+                    <td>${formatNumber(p.quantity)} 箱</td>
+                    <td>${((p.quantity / details.total_quantity) * 100).toFixed(1)}%</td>
+                </tr>
+            `).join('');
+            
+            panel.style.display = 'block';
+        }
+        
+        function closeParetoDetail() {
+            document.getElementById('pareto-detail-panel').style.display = 'none';
+        }
+        
+        function renderDurationChart(data, targetHours) {
+            const container = document.getElementById('duration-container');
+            
+            if (!data || data.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">⏳</div>
+                        <div class="empty-title">暂无可计算平均时长的已完成记录</div>
+                        <div class="empty-desc">当前状态：总待处理 -- 条 → 其中 0条 已完成</div>
+                        <div class="empty-hint">完成至少 1 条记录后，此处将自动显示各部门效率分析</div>
+                        <button class="btn-primary empty-btn" onclick="location.href='/records'">📋 查看待处理记录</button>
+                    </div>
+                `;
+                return;
+            }
+            
+            const maxHours = Math.max(...data.map(d => d.hours), targetHours);
+            
+            container.innerHTML = `
+                <div class="duration-header">
+                    <span>部门</span>
+                    <span style="flex: 1; text-align: center;">进度</span>
+                    <span style="width: 80px; text-align: right;">平均时长</span>
+                </div>
+                <div class="duration-items">
+                    ${data.map(item => {
+                        const isWarning = item.hours > targetHours * 0.8 && item.hours <= targetHours;
+                        const isDanger = item.hours > targetHours;
+                        const percentage = (item.hours / maxHours) * 100;
+                        const targetPercentage = (targetHours / maxHours) * 100;
+                        
+                        return `
+                            <div class="duration-item">
+                                <span class="duration-dept">${item.dept}</span>
+                                <div class="duration-bar-wrapper">
+                                    <div class="duration-bar ${isDanger ? 'danger' : isWarning ? 'warning' : ''}" style="width: ${percentage}%;"></div>
+                                    <div class="duration-target-line" style="left: ${targetPercentage}%;"></div>
+                                </div>
+                                <span class="duration-value">${item.hours}h</span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                <div style="padding: 12px 16px; font-size: 12px; color: #64748b; display: flex; gap: 20px;">
+                    <span><span style="width: 12px; height: 12px; background: #22c55e; border-radius: 2px; display: inline-block; margin-right: 6px;"></span>达标 (≤${targetHours}h)</span>
+                    <span><span style="width: 12px; height: 12px; background: #f59e0b; border-radius: 2px; display: inline-block; margin-right: 6px;"></span>接近目标</span>
+                    <span><span style="width: 12px; height: 12px; background: #ef4444; border-radius: 2px; display: inline-block; margin-right: 6px;"></span>超标</span>
+                    <span><span style="width: 2px; height: 12px; background: #f59e0b; display: inline-block; margin-right: 6px;"></span>目标基准线</span>
+                </div>
+            `;
+        }
+        
+        function renderDailyReport(data) {
+            const today = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+            document.getElementById('daily-report-date').textContent = today;
+            
+            document.getElementById('daily-pending-count').textContent = data.pending_count || 0;
+            document.getElementById('daily-pending-qty').textContent = `${formatNumber(data.pending_qty || 0)} 件`;
+            document.getElementById('daily-completed-count').textContent = data.completed_count || 0;
+            document.getElementById('daily-completed-qty').textContent = `${formatNumber(data.completed_qty || 0)} 件`;
+            
+            const total = (data.pending_count || 0) + (data.completed_count || 0);
+            const rate = total > 0 ? Math.round((data.completed_count || 0) / total * 100) : 0;
+            document.getElementById('daily-rate').textContent = `${rate}%`;
+            document.getElementById('daily-rate-change').textContent = `↓ 0%`;
+            
+            document.getElementById('daily-overdue-count').textContent = data.overdue_count || 0;
+            const overdueRate = data.pending_count > 0 ? Math.round((data.overdue_count || 0) / data.pending_count * 100) : 0;
+            document.getElementById('daily-overdue-rate').textContent = `${overdueRate}%`;
+            
+            const pendingTable = document.querySelector('#pending-table tbody');
+            if (data.pending_products && data.pending_products.length > 0) {
+                const top5 = data.pending_products.slice(0, 5);
+                pendingTable.innerHTML = top5.map((product, idx) => {
+                    const overdueLevel = getOverdueLevel(product.avg_overdue_days);
+                    return `
+                        <tr>
+                            <td>${idx + 1}</td>
+                            <td class="product-name">${product.name}</td>
+                            <td>${product.count}</td>
+                            <td>${formatNumber(product.quantity)}</td>
+                            <td class="${overdueLevel === 'high' ? 'overdue-high' : overdueLevel === 'medium' ? 'overdue-medium' : ''}">
+                                +${product.avg_overdue_days}天
+                            </td>
+                            <td><span class="status-dot ${overdueLevel}"></span></td>
+                        </tr>
+                    `;
+                }).join('');
+                
+                document.getElementById('view-all-pending').textContent = 
+                    `查看全部 ${data.pending_count} 条记录 →`;
+                document.getElementById('view-all-pending').onclick = () => location.href = '/records';
+            } else {
+                pendingTable.innerHTML = `
+                    <tr><td colspan="6" style="text-align: center; color: #94a3b8;">暂无待处理记录</td></tr>
+                `;
+            }
+            
+            const completedContent = document.getElementById('completed-content');
+            if (data.today_completed && data.today_completed.length > 0) {
+                completedContent.innerHTML = `
+                    <table class="product-table">
+                        <thead>
+                            <tr>
+                                <th>产品名称</th>
+                                <th>处理数量</th>
+                                <th>处理人</th>
+                                <th>处理时间</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.today_completed.map(item => `
+                                <tr>
+                                    <td class="product-name">${item.product_name}</td>
+                                    <td>${formatNumber(item.handled_quantity)}件</td>
+                                    <td>${item.handler || '系统'}</td>
+                                    <td>${item.handle_time || '-'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } else {
+                completedContent.innerHTML = `
+                    <div class="warning-section">
+                        <div class="warning-icon">⚠️</div>
+                        <div class="warning-text">
+                            <div class="warning-title">今日无处理记录</div>
+                            <div class="warning-desc">这已是连续第 ${data.no_progress_days || 3} 天无处理记录，建议立即分配处理任务。</div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        async function loadReport() {
+            const month = new Date().toISOString().slice(0, 7);
+            document.getElementById('report-date').textContent = month;
+            
+            try {
+                console.log('Loading report data...');
+                const cacheBuster = Date.now();
+                const [reportData, dailyData] = await Promise.all([
+                    fetch(`/api/report_data?month=${month}&_=${cacheBuster}`).then(res => res.json()),
+                    fetch(`/api/daily_report?_=${cacheBuster}`).then(res => res.json())
+                ]);
+                
+                console.log('Report data loaded:', reportData);
+                console.log('Reason stats:', reportData.reason_stats);
+                
+                document.getElementById('total-count').textContent = reportData.total_count || '--';
+                document.getElementById('pending-qty').textContent = formatNumber(reportData.pending_qty || 0);
+                
+                const deptPcts = reportData.dept_percentages || {};
+                const deptLabels = Object.entries(deptPcts)
+                    .filter(([, pct]) => pct > 0)
+                    .map(([dept, pct]) => `${dept} ${pct}%`)
+                    .join(' · ') || '无数据';
+                document.getElementById('storage-percent').textContent = '📈 ' + deptLabels;
+                
+                renderTrendChart(reportData.monthly_data);
+                
+                const monthlyTrend = reportData.monthly_trend || 0;
+                const trendIcon = monthlyTrend > 0 ? '📈' : monthlyTrend < 0 ? '📉' : '→';
+                const trendColor = monthlyTrend > 0 ? 'class="trend-up"' : monthlyTrend < 0 ? 'class="trend-down"' : 'class="trend-same"';
+                document.getElementById('monthly-trend').innerHTML = `<span ${trendColor}>${trendIcon} 较上月 ${monthlyTrend > 0 ? '+' : ''}${monthlyTrend}%</span>`;
+                
+                document.getElementById('overdue-info').textContent = `⚠️ 超期 ${reportData.overdue_count || 0}条 (${reportData.overdue_percent || 0}%)`;
+                
+                const completedCount = (reportData.total_count || 0) - (reportData.pending_count || 0);
+                const rate = reportData.total_count > 0 ? Math.round(completedCount / reportData.total_count * 100) : 0;
+                document.getElementById('process-rate').textContent = rate;
+                renderProgressRing(rate);
+                
+                if (reportData.avg_duration_hours !== null && reportData.avg_duration_hours !== undefined) {
+                    document.getElementById('avg-duration').textContent = reportData.avg_duration_hours.toFixed(1);
+                } else {
+                    document.querySelector('.stat-card:last-child .stat-value').textContent = '--';
+                    document.querySelector('.stat-card:last-child .stat-trend').textContent = '⏳ 暂无已完成记录';
+                    document.querySelector('.stat-card:last-child .stat-label:last-child').textContent = '至少需要1条已完成记录';
+                    document.querySelector('.stat-card:last-child .stat-label:last-child').style.color = '#94a3b8';
+                }
+                
+                renderParetoChart(reportData.reason_stats);
+                renderDurationChart(reportData.avg_duration, reportData.target_hours || 48);
+                renderDailyReport(dailyData);
+            } catch (err) {
+                console.error('Failed to load report:', err);
+            }
+        }
+        
+        function exportExcel() {
+            window.location.href = '/api/export';
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Report page loaded');
+            document.getElementById('query-btn').addEventListener('click', loadReport);
+            document.getElementById('export-btn').addEventListener('click', exportExcel);
+            loadReport();
+        });
+    </script>
+</body>
+</html>
