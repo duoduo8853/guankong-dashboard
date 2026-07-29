@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 
 st.set_page_config(layout="wide", page_title="管制品追踪系统")
 
@@ -13,41 +13,60 @@ def load_data():
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
-    cursor.execute('''
-        SELECT COALESCE(handler_name, handle_dept) as dept,
-               COUNT(*) as count,
-               COALESCE(SUM(quantity), 0) as quantity,
-               COALESCE(SUM(CASE WHEN (julianday('now') - julianday(production_date)) > 15 THEN quantity ELSE 0 END), 0) as critical_overdue,
-               COALESCE(SUM(CASE WHEN (julianday('now') - julianday(production_date)) BETWEEN 7 AND 15 THEN quantity ELSE 0 END), 0) as normal_overdue,
-               COALESCE(SUM(CASE WHEN (julianday('now') - julianday(production_date)) BETWEEN 5 AND 7 THEN quantity ELSE 0 END), 0) as upcoming_due,
-               COALESCE(SUM(CASE WHEN (julianday('now') - julianday(production_date)) < 5 THEN quantity ELSE 0 END), 0) as normal
-        FROM guankong_records
-        WHERE status != "已完成"
-        AND (handler_name IS NOT NULL AND TRIM(handler_name) != "" OR handle_dept IS NOT NULL AND TRIM(handle_dept) != "")
-        GROUP BY COALESCE(handler_name, handle_dept)
-        ORDER BY SUM(quantity) DESC
-    ''')
-    dept_stats = [dict(row) for row in cursor.fetchall()]
-    
-    cursor.execute('SELECT COUNT(*) FROM guankong_records WHERE status != "已完成"')
-    pending_count = cursor.fetchone()[0]
-    
-    cursor.execute('SELECT COALESCE(SUM(quantity), 0) FROM guankong_records WHERE status != "已完成"')
-    pending_qty = cursor.fetchone()[0]
-    
-    cursor.execute('SELECT COALESCE(SUM(quantity), 0) FROM guankong_records WHERE status != "已完成" AND deadline < DATE("now")')
-    overdue_qty = cursor.fetchone()[0]
-    
-    cursor.execute('SELECT COUNT(*) FROM guankong_records WHERE status != "已完成" AND deadline < DATE("now")')
-    overdue_count = cursor.fetchone()[0]
+    today = datetime.now().strftime('%Y-%m-%d')
     
     cursor.execute('SELECT COALESCE(SUM(quantity), 0) FROM guankong_records')
     total_qty = cursor.fetchone()[0]
     
+    cursor.execute('SELECT COUNT(*) FROM guankong_records')
+    pending_count = cursor.fetchone()[0]
+    
+    cursor.execute('SELECT COALESCE(SUM(quantity), 0) FROM guankong_records WHERE status != "已完成" AND deadline < ?', (today,))
+    overdue_qty = cursor.fetchone()[0]
+    
+    cursor.execute('SELECT COUNT(*) FROM guankong_records WHERE status != "已完成" AND deadline < ?', (today,))
+    overdue_count = cursor.fetchone()[0]
+    
+    cursor.execute('SELECT COALESCE(SUM(quantity), 0) FROM guankong_records')
+    total_qty_all = cursor.fetchone()[0]
+    
     cursor.execute('SELECT COALESCE(SUM(quantity), 0) FROM guankong_records WHERE status = "已完成"')
     completed_qty = cursor.fetchone()[0]
     
-    completion_rate = round((completed_qty / total_qty) * 100) if total_qty > 0 else 0
+    cursor.execute('SELECT COALESCE(SUM(quantity), 0) FROM guankong_records WHERE status != "已完成"')
+    uncompleted_qty = cursor.fetchone()[0]
+    
+    completion_rate = round((completed_qty / total_qty_all) * 100) if total_qty_all > 0 else 0
+    
+    cursor.execute('''
+        SELECT COALESCE(handler_name, handle_dept) as dept,
+               COUNT(*) as count,
+               COALESCE(SUM(quantity), 0) as quantity,
+               COALESCE(SUM(CASE WHEN (julianday('now') - julianday(deadline)) > 15 THEN quantity ELSE 0 END), 0) as critical_overdue,
+               COALESCE(SUM(CASE WHEN (julianday('now') - julianday(deadline)) BETWEEN 7 AND 15 THEN quantity ELSE 0 END), 0) as normal_overdue,
+               COALESCE(SUM(CASE WHEN (julianday('now') - julianday(deadline)) BETWEEN 5 AND 7 THEN quantity ELSE 0 END), 0) as upcoming_due,
+               COALESCE(SUM(CASE WHEN (julianday('now') - julianday(deadline)) < 5 THEN quantity ELSE 0 END), 0) as normal
+        FROM guankong_records
+        WHERE status = "待处理"
+          AND deadline IS NOT NULL
+          AND COALESCE(handler_name, handle_dept) IS NOT NULL
+          AND COALESCE(handler_name, handle_dept) != ""
+          AND COALESCE(handler_name, handle_dept) != "未分配"
+        GROUP BY COALESCE(handler_name, handle_dept)
+        ORDER BY SUM(quantity) DESC
+    ''')
+    dept_stats = []
+    for row in cursor.fetchall():
+        dept_stats.append({
+            'dept': row['dept'],
+            'count': row['count'],
+            'qty': row['quantity'],
+            'quantity': row['quantity'],
+            'critical_overdue': row['critical_overdue'],
+            'normal_overdue': row['normal_overdue'],
+            'upcoming_due': row['upcoming_due'],
+            'normal': row['normal']
+        })
     
     cursor.execute('''
         SELECT control_reason, COUNT(*) as count, COALESCE(SUM(quantity), 0) as quantity
@@ -58,29 +77,31 @@ def load_data():
     ''')
     reason_distribution = [dict(row) for row in cursor.fetchall()]
     
-    cursor.execute('''
-        SELECT strftime('%Y-%m-%d', DATE("now", "-6 day")) as date
-        UNION SELECT strftime('%Y-%m-%d', DATE("now", "-5 day"))
-        UNION SELECT strftime('%Y-%m-%d', DATE("now", "-4 day"))
-        UNION SELECT strftime('%Y-%m-%d', DATE("now", "-3 day"))
-        UNION SELECT strftime('%Y-%m-%d', DATE("now", "-2 day"))
-        UNION SELECT strftime('%Y-%m-%d', DATE("now", "-1 day"))
-        UNION SELECT strftime('%Y-%m-%d', DATE("now"))
-    ''')
-    dates = [row[0] for row in cursor.fetchall()]
-    
     last_7_days = []
-    for date_str in dates:
+    for i in range(6, -1, -1):
+        date = (datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d')
+        
+        cursor.execute('SELECT COALESCE(SUM(quantity), 0) FROM guankong_records WHERE DATE(production_date) = ?', (date,))
+        created_qty = cursor.fetchone()[0]
+        
+        cursor.execute('SELECT COALESCE(SUM(quantity), 0) FROM guankong_records WHERE DATE(handle_time) = ?', (date,))
+        completed_day = cursor.fetchone()[0]
+        
         cursor.execute('''
             SELECT COALESCE(SUM(quantity), 0) FROM guankong_records 
-            WHERE status = "已完成" AND DATE(handle_time) = ?
-        ''', (date_str,))
-        completed = cursor.fetchone()[0]
-        rate = round((completed / total_qty) * 100) if total_qty > 0 else 0
+            WHERE status = "待处理" AND (julianday(?) - julianday(deadline)) >= 7
+        ''', (date,))
+        pending_day = cursor.fetchone()[0]
+        
+        rate = round((completed_day / (created_qty + pending_day)) * 100) if (created_qty + pending_day) > 0 else 0
+        
         last_7_days.append({
-            'date': date_str,
-            'rate': rate,
-            'completed_qty': completed
+            'date': date,
+            'count': created_qty,
+            'completed': completed_day,
+            'completed_qty': completed_day,
+            'pending_qty': pending_day,
+            'rate': rate
         })
     
     cursor.execute('''
@@ -96,7 +117,7 @@ def load_data():
                COALESCE(handler_name, handle_dept) as dept,
                COALESCE(SUM(quantity), 0) as quantity
         FROM guankong_records
-        WHERE (handler_name IS NOT NULL AND TRIM(handler_name) != "" OR handle_dept IS NOT NULL AND TRIM(handle_dept) != "")
+        WHERE (handler_name IS NOT NULL AND TRIM(handler_name) != '' OR handle_dept IS NOT NULL AND TRIM(handle_dept) != '')
         GROUP BY month, COALESCE(handler_name, handle_dept)
         ORDER BY month, SUM(quantity) DESC
     ''')
@@ -107,10 +128,10 @@ def load_data():
     return {
         'dept_stats': dept_stats,
         'pending_count': pending_count,
-        'pending_qty': pending_qty,
+        'pending_qty': uncompleted_qty,
         'overdue_qty': overdue_qty,
         'overdue_count': overdue_count,
-        'total_qty': total_qty,
+        'total_qty': total_qty_all,
         'completed_qty': completed_qty,
         'completion_rate': completion_rate,
         'reason_distribution': reason_distribution,
