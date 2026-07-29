@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新增管制品记录</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; display: flex; }
+        .sidebar { width: 220px; background: linear-gradient(180deg, #1e3a5f 0%, #0f172a 100%); min-height: 100vh; padding: 24px 0; display: flex; flex-direction: column; }
+        .sidebar-header { color: white; font-size: 20px; font-weight: 700; padding: 0 24px 24px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 24px; }
+        .sidebar-header .icon { font-size: 24px; margin-right: 8px; }
+        .sidebar-menu { list-style: none; flex: 1; }
+        .sidebar-menu li { margin-bottom: 4px; }
+        .sidebar-menu li a { display: flex; align-items: center; padding: 14px 24px; color: rgba(255,255,255,0.7); text-decoration: none; font-size: 14px; border-left: 3px solid transparent; transition: all 0.3s ease; }
+        .sidebar-menu li a:hover { background: rgba(255,255,255,0.1); color: white; }
+        .sidebar-menu li a.active { background: rgba(59, 130, 246, 0.2); color: white; border-left-color: #3b82f6; }
+        .sidebar-menu li a .menu-icon { margin-right: 12px; font-size: 18px; }
+        .main-content { flex: 1; display: flex; flex-direction: column; }
+        .header { background: #1E3A5F; color: white; padding: 16px 24px; }
+        .header h1 { font-size: 20px; font-weight: 600; }
+        .container { padding: 24px; flex: 1; display: flex; justify-content: center; }
+        .form-card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); width: 100%; max-width: 800px; }
+        .form-title { font-size: 18px; font-weight: 600; color: #333; margin-bottom: 24px; }
+        .form-section { margin-bottom: 24px; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
+        .form-section-title { background: #f8fafc; padding: 12px 16px; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; }
+        .form-section-title .section-icon { margin-right: 8px; }
+        .form-section-title .required-badge { font-size: 12px; font-weight: normal; color: #ef4444; margin-left: 8px; }
+        .form-section-content { padding: 16px; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 14px; color: #374151; margin-bottom: 6px; }
+        .form-group label .required { color: #ef4444; margin-left: 2px; }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        .form-group textarea { height: 80px; resize: vertical; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .form-row-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+        button { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s; }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-secondary { background: #f3f4f6; color: #374151; }
+        .btn-secondary:hover { background: #e5e7eb; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-danger:hover { background: #dc2626; }
+        .form-actions { margin-top: 24px; text-align: right; display: flex; justify-content: flex-end; gap: 12px; }
+        .status-options { display: flex; gap: 12px; }
+        .status-option { padding: 8px 16px; border: 2px solid #e5e7eb; border-radius: 6px; cursor: pointer; font-size: 14px; transition: all 0.2s; }
+        .status-option.active { border-color: #3b82f6; background: #eff6ff; }
+        
+        .category-dropdown { position: relative; }
+        .category-select { width: 100%; padding: 10px 32px 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; appearance: none; background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") right 8px center / 16px no-repeat; cursor: pointer; }
+        .category-select:focus { outline: none; border-color: #3b82f6; }
+        .category-dropdown-content { display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: white; border: 1px solid #e5e7eb; border-radius: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); z-index: 100; max-height: 280px; overflow-y: auto; }
+        .category-dropdown.active .category-dropdown-content { display: block; }
+        .category-group { border-bottom: 1px solid #f3f4f6; }
+        .category-group:last-child { border-bottom: none; }
+        .category-group-title { padding: 8px 12px; font-weight: 600; font-size: 12px; color: #6b7280; background: #f9fafb; }
+        .category-item { padding: 8px 12px; cursor: pointer; font-size: 14px; color: #374151; display: flex; align-items: center; }
+        .category-item:hover { background: #eff6ff; }
+        .category-item .item-icon { margin-right: 8px; }
+        .selected-reason { margin-top: 8px; padding: 8px 12px; background: #f0fdf4; border-radius: 4px; font-size: 13px; color: #16a34a; display: flex; align-items: center; justify-content: space-between; }
+        .selected-reason .reason-tip { font-size: 12px; color: #65a30d; }
+        .custom-reason-input { margin-top: 8px; }
+        .custom-reason-input input { width: calc(100% - 80px); display: inline-block; }
+        .custom-reason-input button { padding: 10px 16px; font-size: 13px; }
+        
+        .product-input-group { position: relative; }
+        .scan-btn { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; font-size: 20px; cursor: pointer; color: #6b7280; }
+        .scan-btn:hover { color: #3b82f6; }
+        
+        .toast { position: fixed; top: 20px; right: 20px; padding: 16px 24px; border-radius: 8px; color: white; font-weight: 500; z-index: 1000; animation: slideIn 0.3s ease; }
+        .toast-success { background: #10b981; }
+        .toast-warning { background: #f59e0b; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: white; border-radius: 8px; padding: 24px; width: 90%; max-width: 400px; }
+        .modal-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+        .modal-body { margin-bottom: 20px; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 12px; }
+        
+        .has-draft { position: relative; }
+        .has-draft::after { content: '📝'; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header"><span class="icon">📦</span><span>管制品追踪</span></div>
+        <ul class="sidebar-menu">
+            <li><a href="/dashboard"><span class="menu-icon">📊</span>仪表盘</a></li>
+            <li><a href="/records"><span class="menu-icon">📋</span>管制品台账</a></li>
+            <li><a href="/add" class="active"><span class="menu-icon">➕</span>新增记录</a></li>
+            <li><a href="/import"><span class="menu-icon">📥</span>数据导入</a></li>
+            <li><a href="/report"><span class="menu-icon">📈</span>报表分析</a></li>
+            <li><a href="/admin"><span class="menu-icon">⚙️</span>系统管理</a></li>
+        </ul>
+    </div>
+    
+    <div class="main-content">
+        <div class="header">
+            <h1>📝 新增管制品记录</h1>
+        </div>
+        
+        <div class="container">
+            <div class="form-card">
+                <div class="form-title" id="form-title">新增管制品记录</div>
+                <form id="record-form">
+                    <input type="hidden" id="record-id">
+                    <input type="hidden" id="current-user" value="管理员">
+                    
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <span class="section-icon">📋</span>
+                            <span>基本信息</span>
+                            <span class="required-badge">（必填）</span>
+                        </div>
+                        <div class="form-section-content">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>产品品项<span class="required">*</span></label>
+                                    <div class="product-input-group">
+                                        <input type="text" id="product-name" placeholder="如：成品-PET1L入康师傅每日C百香果双柠彩膜装" required>
+                                        <button type="button" class="scan-btn" id="scan-btn" title="扫码录入">📷</button>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>生产班次<span class="required">*</span></label>
+                                    <input type="date" id="production-date" required>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>管制原因<span class="required">*</span></label>
+                                    <div class="category-dropdown" id="reason-dropdown">
+                                        <select class="category-select" id="control-reason-select" readonly>
+                                            <option value="">请选择管制原因</option>
+                                        </select>
+                                        <div class="category-dropdown-content">
+                                            <div class="category-group">
+                                                <div class="category-group-title">📋 流程阶段类</div>
+                                                <div class="category-item" data-value="开线追踪">
+                                                    <span class="item-icon">🔧</span>开线追踪
+                                                </div>
+                                                <div class="category-item" data-value="生产中追踪">
+                                                    <span class="item-icon">⚙️</span>生产中追踪
+                                                </div>
+                                                <div class="category-item" data-value="生产追踪">
+                                                    <span class="item-icon">📈</span>生产追踪
+                                                </div>
+                                                <div class="category-item" data-value="结线追踪">
+                                                    <span class="item-icon">🔚</span>结线追踪
+                                                </div>
+                                            </div>
+                                            <div class="category-group">
+                                                <div class="category-group-title">⚠️ 缺陷类</div>
+                                                <div class="category-item" data-value="瓶标不良">
+                                                    <span class="item-icon">🏷️</span>瓶标不良
+                                                </div>
+                                                <div class="category-item" data-value="大字喷印不良">
+                                                    <span class="item-icon">🔤</span>大字喷印不良
+                                                </div>
+                                                <div class="category-item" data-value="卡伤">
+                                                    <span class="item-icon">💔</span>卡伤
+                                                </div>
+                                                <div class="category-item" data-value="B侧花边">
+                                                    <span class="item-icon">🎀</span>B侧花边
+                                                </div>
+                                            </div>
+                                            <div class="category-group">
+                                                <div class="category-group-title">⏱️ 时间/工艺类</div>
+                                                <div class="category-item" data-value="调配液超时">
+                                                    <span class="item-icon">⏲️</span>调配液超时
+                                                </div>
+                                                <div class="category-item" data-value="CIP周期超时">
+                                                    <span class="item-icon">🔄</span>CIP周期超时
+                                                </div>
+                                            </div>
+                                            <div class="category-group">
+                                                <div class="category-group-title">🔄 处置类</div>
+                                                <div class="category-item" data-value="返工">
+                                                    <span class="item-icon">🔁</span>返工
+                                                </div>
+                                                <div class="category-item" data-value="品质追踪">
+                                                    <span class="item-icon">🔍</span>品质追踪
+                                                </div>
+                                            </div>
+                                            <div class="category-group">
+                                                <div class="category-group-title">🆕 特殊场景</div>
+                                                <div class="category-item" data-value="新品调试（软瓶）">
+                                                    <span class="item-icon">✨</span>新品调试（软瓶）
+                                                </div>
+                                            </div>
+                                            <div class="category-group">
+                                                <div class="category-group-title">📝 其他</div>
+                                                <div class="category-item custom-reason-trigger" data-value="custom">
+                                                    <span class="item-icon">➕</span>自定义原因
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div id="selected-reason-display" style="display: none;"></div>
+                                    <div id="custom-reason-container" style="display: none;" class="custom-reason-input">
+                                        <input type="text" id="custom-reason" placeholder="请输入自定义管制原因">
+                                        <button type="button" class="btn-primary" id="confirm-custom-reason">确认</button>
+                                    </div>
+                                    <input type="hidden" id="control-reason">
+                                </div>
+                                <div class="form-group">
+                                    <label>处理部门<span class="required">*</span></label>
+                                    <select id="handle-dept" required>
+                                        <option value="">请选择处理部门</option>
+                                        <option value="制造">制造</option>
+                                        <option value="仓储">仓储</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>数量（箱）<span class="required">*</span></label>
+                                    <input type="number" id="quantity" min="1" max="999999" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>处理期限</label>
+                                    <input type="date" id="deadline" readonly>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <span class="section-icon">🔧</span>
+                            <span>处理信息</span>
+                            <span class="required-badge">（选填）</span>
+                        </div>
+                        <div class="form-section-content">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>已处理数量（箱）</label>
+                                    <input type="number" id="handled-quantity" min="0" max="999999">
+                                </div>
+                                <div class="form-group">
+                                    <label>状态</label>
+                                    <div class="status-options">
+                                        <div class="status-option status-pending active" data-value="待处理">待处理</div>
+                                        <div class="status-option status-processing" data-value="处理中">处理中</div>
+                                        <div class="status-option status-completed" data-value="已完成">已完成</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>处理意见</label>
+                                <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                                    <select id="opinion-template" style="flex: 1;">
+                                        <option value="">选择模板...</option>
+                                        <option value="返工">返工</option>
+                                        <option value="报废">报废</option>
+                                        <option value="更换条码">更换条码</option>
+                                        <option value="重新贴标">重新贴标</option>
+                                    </select>
+                                    <span style="font-size: 13px; color: #6b7280; align-self: center;">或</span>
+                                    <button type="button" class="btn-secondary" id="custom-opinion-btn">自定义</button>
+                                </div>
+                                <textarea id="handle-opinion" placeholder="请输入处理意见..." style="display: none;"></textarea>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>处理时间</label>
+                                    <input type="date" id="handle-time">
+                                </div>
+                                <div class="form-group">
+                                    <label>处理人</label>
+                                    <input type="text" id="handler" value="" placeholder="请输入处理人姓名">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <span class="section-icon">📝</span>
+                            <span>备注</span>
+                            <span class="required-badge">（选填）</span>
+                        </div>
+                        <div class="form-section-content">
+                            <div class="form-group">
+                                <label>备注</label>
+                                <textarea id="remark" placeholder="请输入备注信息..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" id="cancel-btn">取消</button>
+                        <button type="submit" class="btn-primary" id="save-continue-btn">保存并继续新增</button>
+                        <button type="submit" class="btn-primary" id="save-btn">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal-overlay" id="confirm-modal">
+        <div class="modal">
+            <div class="modal-title" id="modal-title">确认退出</div>
+            <div class="modal-body" id="modal-body">您有未保存的内容，确定要退出吗？</div>
+            <div class="modal-actions">
+                <button class="btn-secondary" id="modal-cancel">取消</button>
+                <button class="btn-primary" id="modal-confirm">确认</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal-overlay" id="duplicate-modal">
+        <div class="modal">
+            <div class="modal-title">⚠️ 重复检测</div>
+            <div class="modal-body">该批次已存在管制记录，是否继续保存？</div>
+            <div class="modal-actions">
+                <button class="btn-secondary" id="duplicate-cancel">取消</button>
+                <button class="btn-primary" id="duplicate-confirm">继续保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const REASON_TIPS = {
+            '瓶标不良': '常见于PET500纯净水系列',
+            '大字喷印不良': '需检查喷码设备',
+            '返工': '需重新生产或修复',
+            '品质追踪': '需要品质部门介入',
+            '调配液超时': '原料可能过期',
+            '开线追踪': '新生产线启动',
+            '生产追踪': '生产过程监控',
+            '结线追踪': '生产线结束追踪',
+            '卡伤': '包装或产品受损',
+            'B侧花边': '标签边缘问题',
+            'CIP周期超时': '清洁周期过长',
+            '新品调试（软瓶）': '新产品测试阶段'
+        };
+        
+        let hasUnsavedChanges = false;
+        let saveMode = 'save';
+        
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => { toast.remove(); }, 3000);
+        }
+        
+        function getUrlParam(name) {
+            const params = new URLSearchParams(window.location.search);
+            return params.get(name);
+        }
+        
+        async function loadRecord(id) {
+            const response = await fetch(`/api/records/${id}`);
+            const record = await response.json();
+            
+            document.getElementById('record-id').value = record.id;
+            document.getElementById('production-date').value = record.production_date;
+            document.getElementById('product-name').value = record.product_name;
+            document.getElementById('control-reason').value = record.control_reason;
+            document.getElementById('quantity').value = record.quantity;
+            document.getElementById('handled-quantity').value = record.handled_quantity || '';
+            document.getElementById('handle-opinion').value = record.handle_opinion || '';
+            document.getElementById('handle-time').value = record.handle_time || '';
+            document.getElementById('handle-dept').value = record.handle_dept;
+            document.getElementById('handler').value = record.handler_name || '';
+            document.getElementById('deadline').value = record.deadline;
+            document.getElementById('remark').value = record.remark || '';
+            
+            document.getElementById('control-reason-select').value = record.control_reason || '';
+            if (record.control_reason) {
+                const tip = REASON_TIPS[record.control_reason] || '';
+                document.getElementById('selected-reason-display').innerHTML = 
+                    `<div class="selected-reason">已选：${record.control_reason} ${tip ? `<span class="reason-tip">[${tip}]</span>` : ''}</div>`;
+                document.getElementById('selected-reason-display').style.display = 'block';
+            }
+            
+            document.querySelectorAll('.status-option').forEach(opt => opt.classList.remove('active'));
+            document.querySelector(`.status-option[data-value="${record.status || '待处理'}"]`).classList.add('active');
+            
+            document.getElementById('form-title').textContent = '编辑管制品记录';
+            document.getElementById('save-continue-btn').style.display = 'none';
+        }
+        
+        function updateDeadline() {
+            const productionDate = document.getElementById('production-date').value;
+            if (productionDate) {
+                const date = new Date(productionDate);
+                date.setDate(date.getDate() + 7);
+                document.getElementById('deadline').value = date.toISOString().split('T')[0];
+            }
+        }
+        
+        function clearForm(keepCommonFields = false) {
+            document.getElementById('record-id').value = '';
+            document.getElementById('production-date').value = new Date().toISOString().split('T')[0];
+            document.getElementById('quantity').value = '';
+            document.getElementById('handled-quantity').value = '';
+            document.getElementById('handle-opinion').value = '';
+            document.getElementById('handle-time').value = '';
+            document.getElementById('deadline').value = '';
+            document.getElementById('remark').value = '';
+            document.getElementById('control-reason').value = '';
+            document.getElementById('control-reason-select').value = '';
+            document.getElementById('selected-reason-display').style.display = 'none';
+            document.getElementById('custom-reason-container').style.display = 'none';
+            document.getElementById('custom-reason').value = '';
+            
+            if (!keepCommonFields) {
+                document.getElementById('product-name').value = '';
+                document.getElementById('handle-dept').value = '';
+            }
+            
+            document.querySelectorAll('.status-option').forEach(opt => opt.classList.remove('active'));
+            document.querySelector('.status-option[data-value="待处理"]').classList.add('active');
+            
+            updateDeadline();
+            hasUnsavedChanges = false;
+        }
+        
+        async function checkDuplicate(productionDate, productName) {
+            const response = await fetch(`/api/check-duplicate?production_date=${productionDate}&product_name=${encodeURIComponent(productName)}`);
+            const result = await response.json();
+            return result.exists;
+        }
+        
+        async function saveRecord(continueMode = false) {
+            const id = document.getElementById('record-id').value;
+            const productionDate = document.getElementById('production-date').value;
+            const productName = document.getElementById('product-name').value;
+            
+            if (!id) {
+                const isDuplicate = await checkDuplicate(productionDate, productName);
+                if (isDuplicate) {
+                    document.getElementById('duplicate-modal').classList.add('active');
+                    document.getElementById('duplicate-confirm').onclick = async () => {
+                        document.getElementById('duplicate-modal').classList.remove('active');
+                        await doSave(id, continueMode);
+                    };
+                    document.getElementById('duplicate-cancel').onclick = () => {
+                        document.getElementById('duplicate-modal').classList.remove('active');
+                    };
+                    return;
+                }
+            }
+            
+            await doSave(id, continueMode);
+        }
+        
+        async function doSave(id, continueMode) {
+            const data = {
+                production_date: document.getElementById('production-date').value,
+                product_name: document.getElementById('product-name').value,
+                control_reason: document.getElementById('control-reason').value,
+                quantity: parseInt(document.getElementById('quantity').value),
+                handled_quantity: parseInt(document.getElementById('handled-quantity').value) || 0,
+                handle_opinion: document.getElementById('handle-opinion').value,
+                handle_time: document.getElementById('handle-time').value,
+                handle_dept: document.getElementById('handle-dept').value,
+                handler_name: document.getElementById('handler').value,
+                status: document.querySelector('.status-option.active')?.dataset.value || '待处理',
+                deadline: document.getElementById('deadline').value,
+                remark: document.getElementById('remark').value
+            };
+            
+            const url = id ? `/api/records/${id}` : '/api/records';
+            const method = id ? 'PUT' : 'POST';
+            
+            const response = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            if (response.ok) {
+                if (continueMode) {
+                    showToast('✅ 已保存，请继续录入下一条');
+                    clearForm(true);
+                } else {
+                    showToast('✅ 记录已保存成功！');
+                    setTimeout(() => { location.href = '/records'; }, 1500);
+                }
+            }
+        }
+        
+        function saveDraft() {
+            const formData = {
+                production_date: document.getElementById('production-date').value,
+                product_name: document.getElementById('product-name').value,
+                control_reason: document.getElementById('control-reason').value,
+                quantity: document.getElementById('quantity').value,
+                handled_quantity: document.getElementById('handled-quantity').value,
+                handle_opinion: document.getElementById('handle-opinion').value,
+                handle_time: document.getElementById('handle-time').value,
+                handle_dept: document.getElementById('handle-dept').value,
+                deadline: document.getElementById('deadline').value,
+                remark: document.getElementById('remark').value,
+                saved_at: new Date().toISOString()
+            };
+            localStorage.setItem('draft_record', JSON.stringify(formData));
+        }
+        
+        function loadDraft() {
+            const draft = localStorage.getItem('draft_record');
+            if (draft) {
+                const data = JSON.parse(draft);
+                document.getElementById('production-date').value = data.production_date || new Date().toISOString().split('T')[0];
+                document.getElementById('product-name').value = data.product_name || '';
+                document.getElementById('control-reason').value = data.control_reason || '';
+                document.getElementById('control-reason-select').value = data.control_reason || '';
+                document.getElementById('quantity').value = data.quantity || '';
+                document.getElementById('handled-quantity').value = data.handled_quantity || '';
+                document.getElementById('handle-opinion').value = data.handle_opinion || '';
+                document.getElementById('handle-time').value = data.handle_time || '';
+                document.getElementById('handle-dept').value = data.handle_dept || '';
+                document.getElementById('deadline').value = data.deadline || '';
+                document.getElementById('remark').value = data.remark || '';
+                
+                if (data.control_reason) {
+                    const tip = REASON_TIPS[data.control_reason] || '';
+                    document.getElementById('selected-reason-display').innerHTML = 
+                        `<div class="selected-reason">已选：${data.control_reason} ${tip ? `<span class="reason-tip">[${tip}]</span>` : ''}</div>`;
+                    document.getElementById('selected-reason-display').style.display = 'block';
+                }
+                
+                updateDeadline();
+                showToast('📝 已加载草稿内容', 'warning');
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('production-date').value = new Date().toISOString().split('T')[0];
+            updateDeadline();
+            document.querySelector('.status-option[data-value="待处理"]').classList.add('active');
+            
+            const recordId = getUrlParam('id');
+            if (recordId) {
+                loadRecord(recordId);
+            } else {
+                loadDraft();
+            }
+            
+            document.getElementById('production-date').addEventListener('change', updateDeadline);
+            
+            document.querySelectorAll('input, select, textarea').forEach(el => {
+                el.addEventListener('input', () => { hasUnsavedChanges = true; });
+                el.addEventListener('change', () => { hasUnsavedChanges = true; });
+            });
+            
+            document.querySelectorAll('.status-option').forEach(opt => {
+                opt.addEventListener('click', () => {
+                    document.querySelectorAll('.status-option').forEach(o => o.classList.remove('active'));
+                    opt.classList.add('active');
+                    hasUnsavedChanges = true;
+                });
+            });
+            
+            document.getElementById('reason-dropdown').addEventListener('click', (e) => {
+                e.stopPropagation();
+                document.getElementById('reason-dropdown').classList.toggle('active');
+            });
+            
+            document.querySelectorAll('.category-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const value = item.dataset.value;
+                    if (value === 'custom') {
+                        document.getElementById('custom-reason-container').style.display = 'block';
+                        document.getElementById('selected-reason-display').style.display = 'none';
+                        document.getElementById('control-reason').value = '';
+                    } else {
+                        document.getElementById('control-reason').value = value;
+                        document.getElementById('control-reason-select').value = value;
+                        document.getElementById('custom-reason-container').style.display = 'none';
+                        const tip = REASON_TIPS[value] || '';
+                        document.getElementById('selected-reason-display').innerHTML = 
+                            `<div class="selected-reason">已选：${value} ${tip ? `<span class="reason-tip">[${tip}]</span>` : ''}</div>`;
+                        document.getElementById('selected-reason-display').style.display = 'block';
+                    }
+                    document.getElementById('reason-dropdown').classList.remove('active');
+                    hasUnsavedChanges = true;
+                });
+            });
+            
+            document.getElementById('confirm-custom-reason').addEventListener('click', () => {
+                const customReason = document.getElementById('custom-reason').value.trim();
+                if (customReason) {
+                    document.getElementById('control-reason').value = customReason;
+                    document.getElementById('control-reason-select').value = customReason;
+                    document.getElementById('selected-reason-display').innerHTML = 
+                        `<div class="selected-reason">已选：${customReason}</div>`;
+                    document.getElementById('selected-reason-display').style.display = 'block';
+                    document.getElementById('custom-reason-container').style.display = 'none';
+                    document.getElementById('custom-reason').value = '';
+                }
+            });
+            
+            document.addEventListener('click', () => {
+                document.getElementById('reason-dropdown').classList.remove('active');
+            });
+            
+            document.getElementById('opinion-template').addEventListener('change', (e) => {
+                if (e.target.value) {
+                    document.getElementById('handle-opinion').value = e.target.value;
+                    document.getElementById('handle-opinion').style.display = 'none';
+                }
+            });
+            
+            document.getElementById('custom-opinion-btn').addEventListener('click', () => {
+                document.getElementById('handle-opinion').style.display = 'block';
+                document.getElementById('opinion-template').value = '';
+            });
+            
+            document.getElementById('scan-btn').addEventListener('click', () => {
+                alert('扫码功能已就绪，请扫描产品条码...');
+            });
+            
+            document.getElementById('cancel-btn').addEventListener('click', () => {
+                if (hasUnsavedChanges) {
+                    document.getElementById('confirm-modal').classList.add('active');
+                    document.getElementById('modal-confirm').onclick = () => {
+                        document.getElementById('confirm-modal').classList.remove('active');
+                        saveDraft();
+                        location.href = '/records';
+                    };
+                    document.getElementById('modal-cancel').onclick = () => {
+                        document.getElementById('confirm-modal').classList.remove('active');
+                    };
+                } else {
+                    location.href = '/records';
+                }
+            });
+            
+            document.getElementById('save-btn').addEventListener('click', async (e) => {
+                e.preventDefault();
+                await saveRecord(false);
+            });
+            
+            document.getElementById('save-continue-btn').addEventListener('click', async (e) => {
+                e.preventDefault();
+                await saveRecord(true);
+            });
+            
+            window.addEventListener('beforeunload', (e) => {
+                if (hasUnsavedChanges) {
+                    saveDraft();
+                }
+            });
+        });
+    </script>
+</body>
