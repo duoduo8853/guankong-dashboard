@@ -1,0 +1,2243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管制品追踪数据看板</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js?v=2026061701"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; 
+            background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+            min-height: 100vh;
+        }
+        
+        .dashboard-container {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        .sidebar {
+            width: 220px;
+            background: linear-gradient(180deg, #1e3a5f 0%, #0f172a 100%);
+            padding: 24px 0;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .sidebar-header {
+            color: white;
+            font-size: 20px;
+            font-weight: 700;
+            padding: 0 24px 24px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 24px;
+        }
+        
+        .sidebar-header .icon {
+            font-size: 24px;
+            margin-right: 8px;
+        }
+        
+        .sidebar-menu {
+            list-style: none;
+            flex: 1;
+        }
+        
+        .sidebar-menu li {
+            margin-bottom: 4px;
+        }
+        
+        .sidebar-menu li a {
+            display: flex;
+            align-items: center;
+            padding: 14px 24px;
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            font-size: 14px;
+            border-left: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .sidebar-menu li a:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+        
+        .sidebar-menu li a.active {
+            background: rgba(59, 130, 246, 0.2);
+            color: white;
+            border-left-color: #3b82f6;
+        }
+        
+        .sidebar-menu li a .menu-icon {
+            margin-right: 12px;
+            font-size: 18px;
+        }
+        
+        .main-content {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+        }
+        
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        
+        .page-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: white;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .page-title .icon {
+            margin-right: 12px;
+        }
+        
+        .current-date {
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            padding: 12px 20px;
+            border-radius: 30px;
+            color: white;
+            font-size: 14px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .action-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 30px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .scan-btn {
+            background: rgba(59, 130, 246, 0.9);
+            color: white;
+        }
+        
+        .scan-btn:hover {
+            background: rgba(59, 130, 246, 1);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+        }
+        
+        .filter-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        
+        .filter-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+        
+        .home-btn-inline {
+            background: rgba(255,255,255,0.95);
+            color: #1e3a5f;
+            text-decoration: none;
+        }
+        
+        .home-btn-inline:hover {
+            background: white;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+        }
+        
+        .home-btn {
+            display: none;
+            padding: 12px 24px;
+            border-radius: 40px;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.3);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            text-decoration: none;
+            font-family: system-ui, -apple-system, sans-serif;
+            font-weight: 600;
+            color: #1e3a5f;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .home-btn:hover {
+            background: rgba(255,255,255,1);
+            box-shadow: 0 6px 24px rgba(0,0,0,0.3);
+            transform: translateY(-2px);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+        
+        .stat-card {
+            background: rgba(255,255,255,0.95);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 15px 50px rgba(0,0,0,0.15);
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #3b82f6, #60a5fa);
+        }
+        
+        .stat-card.pending::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+        .stat-card.overdue::before { background: linear-gradient(90deg, #ef4444, #dc2626); }
+        .stat-card.due-today::before { background: linear-gradient(90deg, #f97316, #fb923c); }
+        .stat-card.new::before { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
+        .stat-card.completed::before { background: linear-gradient(90deg, #10b981, #34d399); }
+        
+        .stat-card.overdue {
+            border: 2px solid rgba(239, 68, 68, 0.4);
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.2), 0 10px 40px rgba(0,0,0,0.1);
+            animation: pulse-overdue 2s infinite;
+        }
+        
+        @keyframes pulse-overdue {
+            0%, 100% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.2), 0 10px 40px rgba(0,0,0,0.1); }
+            50% { box-shadow: 0 0 30px rgba(239, 68, 68, 0.4), 0 10px 40px rgba(0,0,0,0.1); }
+        }
+        
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+        
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        
+        .stat-card.pending .stat-icon { background: rgba(245, 158, 11, 0.15); }
+        .stat-card.overdue .stat-icon { background: rgba(239, 68, 68, 0.2); }
+        .stat-card.new .stat-icon { background: rgba(139, 92, 246, 0.15); }
+        .stat-card.completed .stat-icon { background: rgba(16, 185, 129, 0.15); }
+        
+        .stat-card .stat-value.gray {
+            color: #94a3b8;
+        }
+        
+        .stat-row {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+        }
+        
+        .stat-compare {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+        
+        .stat-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        
+        .stat-btn {
+            flex: 1;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #3b82f6, #60a5fa);
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .stat-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+        
+        .stat-btn.urgent {
+            background: linear-gradient(135deg, #ef4444, #f87171);
+        }
+        
+        .stat-btn.urgent:hover {
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+        }
+        
+        .mini-chart-container {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .mini-chart-title {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-bottom: 8px;
+        }
+        
+        .mini-line-chart {
+            height: 40px;
+        }
+        
+        .mini-pie-chart {
+            height: 60px;
+        }
+        
+        .stat-sub-label .critical {
+            color: #ef4444;
+            font-weight: 600;
+        }
+        
+        .stat-trend {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 20px;
+        }
+        
+        .stat-trend.up { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+        .stat-trend.down { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+        
+        .stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 4px;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: #64748b;
+            font-weight: 500;
+        }
+        
+        .stat-sub-label {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+        
+        .stat-pct {
+            font-size: 12px;
+            color: #64748b;
+            padding: 4px 8px;
+            background: rgba(148, 163, 184, 0.15);
+            border-radius: 12px;
+        }
+        
+        .stat-link {
+            display: inline-block;
+            font-size: 12px;
+            color: #3b82f6;
+            margin-top: 8px;
+            text-decoration: none;
+        }
+        
+        .stat-link:hover {
+            text-decoration: underline;
+        }
+        
+        .product-table-container {
+            overflow-x: auto;
+            margin-top: 16px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+        }
+        
+        .product-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            table-layout: fixed;
+        }
+        
+        .product-table th,
+        .product-table td {
+            padding: 10px 8px;
+            text-align: center;
+            border-bottom: 1px solid #f1f5f9;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.5;
+        }
+        
+        .product-table th {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: #ffffff;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .product-table td:nth-child(2) {
+            text-align: left;
+            padding-left: 12px;
+            font-weight: 500;
+        }
+        
+        .product-table tr {
+            transition: all 0.2s ease;
+        }
+        
+        .product-table tr:hover {
+            background: rgba(59, 130, 246, 0.08);
+            transform: scale(1.002);
+        }
+        
+        .product-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .rank-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .rank-badge.top3:nth-child(1) {
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+        }
+        
+        .rank-badge.top3:nth-child(2) {
+            background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+        }
+        
+        .rank-badge.top3:nth-child(3) {
+            background: linear-gradient(135deg, #fdba74 0%, #f97316 100%);
+        }
+        
+        .risk-critical {
+            background: #FEF2F2;
+        }
+        
+        .risk-serious {
+            background: #FFF7ED;
+        }
+        
+        .risk-warning {
+            background: #FEFCE8;
+        }
+        
+        .risk-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            color: white;
+        }
+        
+        .risk-badge.critical {
+            background: #ef4444;
+        }
+        
+        .risk-badge.serious {
+            background: #f59e0b;
+        }
+        
+        .risk-badge.warning {
+            background: #eab308;
+        }
+        
+        .risk-badge.normal {
+            background: #22c55e;
+        }
+        
+        .action-btn {
+            padding: 4px 10px;
+            border: none;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .action-btn.view {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .action-btn.view:hover {
+            background: #2563eb;
+        }
+        
+        .action-btn.urgent {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .action-btn.urgent:hover {
+            background: #dc2626;
+        }
+        
+        .stat-hint {
+            font-size: 11px;
+            color: #ef4444;
+            margin-top: 8px;
+            font-weight: 500;
+        }
+        
+        .overdue-value {
+            color: #ef4444;
+        }
+        
+        .charts-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+        
+        .chart-card {
+            background: rgba(255,255,255,0.95);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            cursor: pointer;
+        }
+        
+        .chart-card.full-width {
+            grid-column: span 2;
+        }
+        
+        .chart-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .chart-column .chart-card {
+            flex: 1;
+        }
+        
+        .chart-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1e3a5f;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .chart-title .icon {
+            font-size: 20px;
+        }
+        
+        .chart-container {
+            height: 280px;
+        }
+        
+        .bottom-charts {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .bottom-chart-card {
+            background: rgba(255,255,255,0.95);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            cursor: pointer;
+        }
+        
+        .bottom-chart-container {
+            height: 250px;
+        }
+        
+        .marquee-container {
+            background: linear-gradient(90deg, #fef2f2 0%, #fee2e2 50%, #fef2f2 100%);
+            border: 2px solid #fca5a5;
+            border-radius: 12px;
+            padding: 12px 20px;
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+        
+        .marquee-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #dc2626;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .marquee-content {
+            font-size: 13px;
+            color: #b91c1c;
+            white-space: nowrap;
+            animation: marquee 30s linear infinite;
+        }
+        
+        @keyframes marquee {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+        
+        .marquee-container:hover .marquee-content {
+            animation-play-state: paused;
+        }
+        
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .modal {
+            background: white;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+        
+        .modal-overlay.active .modal {
+            transform: scale(1);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            border-bottom: 1px solid #e2e8f0;
+            background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+            color: white;
+        }
+        
+        .modal-header.pending { background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); }
+        .modal-header.overdue { background: linear-gradient(135deg, #ef4444 0%, #f87171 100%); }
+        .modal-header.due-today { background: linear-gradient(135deg, #f97316 0%, #fb923c 100%); }
+        .modal-header.new { background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%); }
+        .modal-header.dept { background: linear-gradient(135deg, #1e3a5f 0%, #3b82f6 100%); }
+        
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .modal-close {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        
+        .modal-close:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .modal-body {
+            padding: 24px;
+            max-height: calc(80vh - 80px);
+            overflow-y: auto;
+        }
+        
+        .detail-list {
+            list-style: none;
+        }
+        
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 0;
+            border-bottom: 1px dashed #e2e8f0;
+        }
+        
+        .detail-item:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-name {
+            flex: 1;
+            font-size: 14px;
+            color: #334155;
+            word-break: break-word;
+            padding-right: 20px;
+        }
+        
+        .detail-stats {
+            display: flex;
+            gap: 24px;
+            white-space: nowrap;
+        }
+        
+        .detail-records {
+            font-size: 13px;
+            color: #64748b;
+        }
+        
+        .detail-records strong {
+            color: #3b82f6;
+            font-weight: 600;
+        }
+        
+        .detail-quantity {
+            font-size: 16px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        
+        .modal-header.pending .detail-quantity { color: #f59e0b; }
+        .modal-header.overdue .detail-quantity { color: #ef4444; }
+        .modal-header.new .detail-quantity { color: #8b5cf6; }
+        
+        @media (max-width: 1400px) {
+            .stats-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        
+        @media (max-width: 1200px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .charts-row,
+            .bottom-charts {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                display: none;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 16px;
+            }
+            
+            .home-btn {
+                top: 16px;
+                right: 16px;
+                font-size: 12px;
+                padding: 8px 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    
+    <div class="dashboard-container">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <span class="icon">📦</span>
+                <span>管制品追踪</span>
+            </div>
+            <ul class="sidebar-menu">
+                <li><a href="/dashboard" class="active"><span class="menu-icon">📊</span>仪表盘</a></li>
+                <li><a href="/records"><span class="menu-icon">📋</span>管制品台账</a></li>
+                <li><a href="/report"><span class="menu-icon">📈</span>报表分析</a></li>
+                <li><a href="/admin"><span class="menu-icon">⚙️</span>系统管理</a></li>
+            </ul>
+        </div>
+        
+        <div class="main-content">
+            <div class="page-header">
+                <h1 class="page-title">
+                    <span class="icon">📊</span>
+                    管制品追踪数据看板
+                </h1>
+                <div class="header-actions">
+                    <a href="/" class="action-btn home-btn-inline">
+                        <span>🏠</span>
+                        <span>返回主页</span>
+                    </a>
+                    <button class="action-btn scan-btn" onclick="openScanModal()">
+                        <span>📷</span>
+                        <span>扫码新增</span>
+                    </button>
+                    <button class="action-btn filter-btn" onclick="location.href='/records?overdue=today'">
+                        <span>📅</span>
+                        <span>今日到期</span>
+                    </button>
+                    <div class="current-date" id="current-date"></div>
+                </div>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card pending" onclick="showModal('pending')">
+                    <div class="stat-header">
+                        <div class="stat-icon">📦</div>
+                    </div>
+                    <div class="stat-value" id="pending-qty">0</div>
+                    <div class="stat-label">待处理总数（箱）</div>
+                    <div class="stat-sub-label" id="pending-info">📦 共 0 条记录 | 处理人分布</div>
+                    <div class="stat-trend" id="pending-trend">📈 较昨日 -</div>
+                </div>
+                
+                <div class="stat-card overdue">
+                    <div class="stat-header">
+                        <div class="stat-icon">🔴</div>
+                    </div>
+                    <div class="stat-value overdue-value" id="overdue-qty">0</div>
+                    <div class="stat-label">超期项目数（箱）</div>
+                    <div class="stat-sub-label" id="overdue-info">⏳ 超期率 0% | <span class="critical">超期>15天 共: 0箱</span></div>
+                    <div class="stat-trend" id="overdue-worst">🔥 最紧急: +0天</div>
+                    <div class="stat-actions">
+                        <button class="stat-btn" onclick="location.href='/records?overdue=overdue_7'">【查看全部】</button>
+                        <button class="stat-btn urgent" onclick="sendFeishuNotification()">📢 一键催办</button>
+                    </div>
+                </div>
+                
+                <div class="stat-card new">
+                    <div class="stat-header">
+                        <div class="stat-icon">🆕</div>
+                    </div>
+                    <div class="stat-value gray" id="today-added">0</div>
+                    <div class="stat-label">今日新增（条）</div>
+                    <div class="stat-sub-label" id="new-info">📋 今日暂无新增，昨日新增 0条</div>
+                    <div class="mini-chart-container">
+                        <div class="mini-chart-title">本月累计新增构成</div>
+                        <div class="mini-pie-chart" id="new-pie-chart"></div>
+                    </div>
+                </div>
+                
+                <div class="stat-card completed">
+                    <div class="stat-header">
+                        <div class="stat-icon">✅</div>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-value gray" id="completion-rate">0%</span>
+                        <span class="stat-compare">← 昨日 0%</span>
+                    </div>
+                    <div class="stat-label">处理率</div>
+                    <div class="mini-chart-container">
+                        <div class="mini-line-chart" id="completion-line-chart"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="marquee-container" id="dashboard-marquee" style="display: none;">
+                <div class="marquee-title">🔥 严重超期警示（超期30天以上未处理）</div>
+                <div class="marquee-content" id="dashboard-marquee-content"></div>
+            </div>
+            
+            <div class="charts-row">
+                <div class="chart-column">
+                    <div class="chart-card">
+                        <div class="chart-title">
+                            <span class="icon">📊</span>
+                            各部门待处理数量统计
+                        </div>
+                        <div class="chart-container" id="dept-chart"></div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-title">
+                            <span class="icon">📦</span>
+                            月度管制品数量统计
+                        </div>
+                        <div class="chart-container" id="monthly-chart"></div>
+                    </div>
+                </div>
+                <div class="chart-column">
+                    <div class="chart-card">
+                        <div class="chart-title">
+                            <span class="icon">🥧</span>
+                            管制原因分类占比
+                        </div>
+                        <div class="chart-container" id="pie-chart"></div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-title">
+                            <span class="icon">🏆</span>
+                            产品类别处理统计
+                        </div>
+                        <div class="product-table-container" id="product-table"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bottom-charts">
+                <div class="bottom-chart-card">
+                    <div class="chart-title">
+                        <span class="icon">📈</span>
+                        近7天处理率趋势
+                    </div>
+                    <div class="bottom-chart-container" id="line-chart"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header" id="modalHeader">
+                <div class="modal-title" id="modalTitle"></div>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <ul class="detail-list" id="detailList"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const data = {
+            pending: {
+                title: '待处理明细（总数16条，总件数2720件）',
+                type: 'pending',
+                items: [
+                    { name: '成品-PET1L*12入茉莉清茶纸箱装无菌（律二厂）28g', records: 2, quantity: 144 },
+                    { name: '成品-PET1L*12入茉莉蜜茶纸箱装无菌（律二厂）28g', records: 1, quantity: 72 },
+                    { name: '成品-PET2L*6入绿茶低糖蜂蜜味非价签版纸箱装无菌（律二厂）45g', records: 3, quantity: 204 },
+                    { name: '成品-PET2L*6入茉莉蜜茶纸箱装无菌（律二厂）非价签版45g', records: 1, quantity: 68 },
+                    { name: '成品-PET330*12入冰红茶柠檬味彩膜袋（天康）无菌17g', records: 1, quantity: 120 },
+                    { name: '成品-PET330*12入绿茶低糖蜂蜜味彩膜袋（天康）无菌17g', records: 1, quantity: 240 },
+                    { name: '成品-PET330*12入茉莉蜜茶彩膜袋（天康）无菌17g', records: 1, quantity: 240 },
+                    { name: '成品-PET468*15入茉莉清茶纸箱装无菌20g', records: 1, quantity: 102 },
+                    { name: '成品-PET468*15入茉莉蜜茶纸箱装无菌20g', records: 4, quantity: 408 },
+                    { name: '成品-PET500*15入茉莉花茶（无糖）纸箱装（天康）无菌28g', records: 1, quantity: 1122 }
+                ]
+            },
+            overdue: {
+                title: '超期项目明细（总数19条，总件数3458件）',
+                type: 'overdue',
+                items: [
+                    { name: '成品-PET1L*12入茉莉清茶纸箱装无菌（律二厂）28g', records: 3, quantity: 216 },
+                    { name: '成品-PET1L*12入茉莉蜜茶纸箱装无菌（律二厂）28g', records: 2, quantity: 144 },
+                    { name: '成品-PET330*12入冰红茶柠檬味彩膜袋（天康）无菌17g', records: 5, quantity: 600 },
+                    { name: '成品-PET500*15入茉莉花茶（无糖）纸箱装（天康）无菌28g', records: 4, quantity: 4488 },
+                    { name: '成品-PET468*15入茉莉蜜茶纸箱装无菌20g', records: 5, quantity: 510 }
+                ]
+            },
+            new: {
+                title: '今日新增明细（总数2条，总件数312件）',
+                type: 'new',
+                items: [
+                    { name: '成品-PET330*12入冰红茶柠檬味彩膜袋（天康）无菌17g', records: 1, quantity: 120 },
+                    { name: '成品-PET330*12入绿茶低糖蜂蜜味彩膜袋（天康）无菌17g', records: 1, quantity: 240 }
+                ]
+            },
+            'due-today': {
+                title: '今日需处理明细（总数5条，总件数864件）',
+                type: 'due-today',
+                items: [
+                    { name: '成品-PET1L*12入茉莉清茶纸箱装无菌（律二厂）28g', records: 2, quantity: 144 },
+                    { name: '成品-PET330*12入冰红茶柠檬味彩膜袋（天康）无菌17g', records: 1, quantity: 120 },
+                    { name: '成品-PET468*15入茉莉蜜茶纸箱装无菌20g', records: 1, quantity: 102 },
+                    { name: '成品-PET500*15入茉莉花茶（无糖）纸箱装（天康）无菌28g', records: 1, quantity: 1122 }
+                ]
+            },
+            dept: {
+                title: '各部门待处理明细',
+                type: 'dept',
+                items: []
+            },
+            category: {
+                title: '管制原因分类明细',
+                type: 'category',
+                items: []
+            }
+        };
+        
+        function showModal(type) {
+            const overlay = document.getElementById('modalOverlay');
+            const header = document.getElementById('modalHeader');
+            const title = document.getElementById('modalTitle');
+            const list = document.getElementById('detailList');
+            
+            const typeData = data[type];
+            
+            header.className = 'modal-header ' + typeData.type;
+            title.textContent = typeData.title;
+            
+            list.innerHTML = '<li style="text-align:center;color:#94a3b8;">加载中...</li>';
+            
+            if (type === 'category') {
+                fetch('/api/dashboard/reason-records')
+                    .then(res => res.json())
+                    .then(result => {
+                        list.innerHTML = '';
+                        result.forEach(item => {
+                            const li = document.createElement('li');
+                            li.className = 'detail-item';
+                            li.innerHTML = `
+                                <div class="detail-name">${item.reason}</div>
+                                <div class="detail-stats">
+                                    <div class="detail-records"><strong>${item.count}</strong> 条记录</div>
+                                    <div class="detail-quantity">${item.quantity} 箱</div>
+                                </div>
+                            `;
+                            list.appendChild(li);
+                        });
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        list.innerHTML = '<li style="text-align:center;color:#ef4444;">加载失败</li>';
+                    });
+            } else if (type === 'dept') {
+                fetch('/api/dashboard/dept-records')
+                    .then(res => res.json())
+                    .then(result => {
+                        list.innerHTML = '';
+                        result.forEach(item => {
+                            const li = document.createElement('li');
+                            li.className = 'detail-item';
+                            li.innerHTML = `
+                                <div class="detail-name">${item.dept}</div>
+                                <div class="detail-stats">
+                                    <div class="detail-records"><strong>${item.count}</strong> 条记录</div>
+                                    <div class="detail-quantity">${item.quantity} 箱</div>
+                                </div>
+                            `;
+                            list.appendChild(li);
+                        });
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        list.innerHTML = '<li style="text-align:center;color:#ef4444;">加载失败</li>';
+                    });
+            } else {
+                list.innerHTML = '';
+                typeData.items.forEach(item => {
+                    const li = document.createElement('li');
+                    li.className = 'detail-item';
+                    li.innerHTML = `
+                        <div class="detail-name">${item.name}</div>
+                        <div class="detail-stats">
+                            <div class="detail-records"><strong>${item.records}</strong> 条记录</div>
+                            <div class="detail-quantity">${item.quantity} 件</div>
+                        </div>
+                    `;
+                    list.appendChild(li);
+                });
+            }
+            
+            overlay.classList.add('active');
+        }
+        
+        function closeModal(event) {
+            if (event && event.target !== event.currentTarget) return;
+            document.getElementById('modalOverlay').classList.remove('active');
+            document.getElementById('scanModalOverlay')?.classList.remove('active');
+        }
+        
+        function openScanModal() {
+            document.getElementById('scanModalOverlay')?.classList.add('active');
+        }
+        
+        function submitScanCode() {
+            const code = document.getElementById('scan-input').value.trim();
+            if (!code) {
+                alert('请输入扫码内容或手动输入信息');
+                return;
+            }
+            
+            alert(`扫码成功！已识别: ${code}\n\n正在跳转到新增页面...`);
+            closeModal();
+            location.href = '/add';
+        }
+        
+        function loadStatistics() {
+            fetch('/api/statistics')
+                .then(res => res.json())
+                .then(data => {
+                    const el = (id) => document.getElementById(id);
+                    
+                    const pendingQty = data.pending_qty || 0;
+                    const pendingCount = data.pending_count || 0;
+                    const overdueQty = data.overdue_qty || 0;
+                    const overdueCount = data.overdue_count || 0;
+                    const todayAdded = data.today_added || 0;
+                    const completionRate = data.completion_rate || 0;
+                    
+                    if (el('pending-qty')) el('pending-qty').textContent = pendingQty.toLocaleString();
+                    if (el('overdue-qty')) el('overdue-qty').textContent = overdueQty.toLocaleString();
+                    if (el('today-added')) el('today-added').textContent = todayAdded;
+                    if (el('completion-rate')) el('completion-rate').textContent = completionRate + '%';
+                    
+                    if (data.dept_percentages) {
+                        const pendingPcts = data.dept_percentages.pending || {};
+                        const deptLabels = Object.entries(pendingPcts)
+                            .filter(([, pct]) => pct > 0)
+                            .map(([dept, pct]) => `${dept} ${pct}%`)
+                            .join(' · ') || '无数据';
+                        if (el('pending-info')) {
+                            el('pending-info').textContent = `📦 共 ${pendingCount} 条记录 | ${deptLabels}`;
+                        }
+                    }
+                    
+                    const overdueRate = pendingQty > 0 ? ((overdueQty / pendingQty) * 100).toFixed(1) : 0;
+                    const criticalQty = data.dept_stats ? data.dept_stats.reduce((sum, d) => sum + (d.critical_overdue || 0), 0) : 0;
+                    if (el('overdue-info')) {
+                        el('overdue-info').innerHTML = `⏳ 超期率 ${overdueRate}% | <span class="critical">超期>15天 共: ${criticalQty.toLocaleString()}箱</span>`;
+                    }
+                    
+                    let maxOverdueDays = 0;
+                    if (data.dept_stats) {
+                        data.dept_stats.forEach(dept => {
+                            if (dept.avg_wait_days && dept.avg_wait_days > maxOverdueDays) {
+                                maxOverdueDays = dept.avg_wait_days;
+                            }
+                        });
+                    }
+                    if (el('overdue-worst')) {
+                        el('overdue-worst').textContent = `🔥 最紧急: +${maxOverdueDays}天`;
+                    }
+                    
+                    if (el('new-info')) {
+                        const yesterdayAdded = data.yesterday_added || 0;
+                        const newInfoText = todayAdded > 0 
+                            ? `📋 今日新增 ${todayAdded} 条，昨日新增 ${yesterdayAdded}条` 
+                            : `📋 今日暂无新增，昨日新增 ${yesterdayAdded}条`;
+                        el('new-info').textContent = newInfoText;
+                    }
+                    
+                    const trendChange = 0;
+                    const trendPct = 0;
+                    if (el('pending-trend')) {
+                        const trendText = trendChange >= 0 
+                            ? `📈 较昨日 +${trendChange.toLocaleString()}箱 (+${trendPct}%)` 
+                            : `📉 较昨日 ${trendChange.toLocaleString()}箱 (${trendPct}%)`;
+                        el('pending-trend').textContent = trendText;
+                        if (trendChange > 0) {
+                            el('pending-trend').style.color = '#ef4444';
+                        }
+                    }
+                    
+                    const yesterdayRate = data.last_7_days && data.last_7_days.length > 1 
+                        ? data.last_7_days[data.last_7_days.length - 2]?.rate || 0 
+                        : 0;
+                    if (el('stat-compare')) {
+                        el('stat-compare').textContent = `← 昨日 ${yesterdayRate}%`;
+                    }
+                    
+                    if (el('dept-chart')) renderDeptChart(data.dept_stats);
+                    if (el('pie-chart')) renderPieChart(data);
+                    if (el('line-chart')) renderLineChart(data);
+                    if (el('product-table')) loadProductTable();
+                    
+                    renderMiniLineChart(data.last_7_days || []);
+                    
+                    fetch('/api/dashboard/monthly-statistics')
+                        .then(res => res.json())
+                        .then(monthlyData => {
+                            if (el('monthly-chart')) renderMonthlyChart(monthlyData);
+                        })
+                        .catch(err => {
+                            console.error('Failed to load monthly statistics:', err);
+                            if (el('monthly-chart')) renderMonthlyChart([]);
+                        });
+                    renderMiniPieChart(data.reason_distribution || []);
+                })
+                .catch(err => {
+                    console.error(err);
+                    if (document.getElementById('dept-chart')) renderDeptChart([]);
+                    if (document.getElementById('pie-chart')) renderPieChart({});
+                    if (document.getElementById('line-chart')) renderLineChart({});
+                });
+        }
+        
+        function renderMiniLineChart(data) {
+            const chartEl = document.getElementById('completion-line-chart');
+            if (!chartEl) return;
+            
+            const chart = echarts.init(chartEl);
+            const option = {
+                grid: { left: 0, right: 0, top: 5, bottom: 5 },
+                xAxis: { 
+                    type: 'category', 
+                    data: data.map(d => d.date?.slice(5) || ''),
+                    axisLine: { show: false },
+                    axisLabel: { show: false },
+                    axisTick: { show: false }
+                },
+                yAxis: { 
+                    type: 'value',
+                    axisLine: { show: false },
+                    axisLabel: { show: false },
+                    axisTick: { show: false },
+                    splitLine: { show: false }
+                },
+                series: [{
+                    type: 'line',
+                    data: data.map(d => d.rate || 0),
+                    smooth: true,
+                    symbol: 'none',
+                    lineStyle: { 
+                        width: 2, 
+                        color: '#10b981'
+                    },
+                    areaStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: 'rgba(16, 185, 129, 0.3)' },
+                            { offset: 1, color: 'rgba(16, 185, 129, 0.05)' }
+                        ])
+                    }
+                }]
+            };
+            chart.setOption(option);
+        }
+        
+        function renderMiniPieChart(data) {
+            const chartEl = document.getElementById('new-pie-chart');
+            if (!chartEl) return;
+            
+            const colors = ['#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444'];
+            const chart = echarts.init(chartEl);
+            const option = {
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{b}: {c}箱 ({d}%)'
+                },
+                series: [{
+                    type: 'pie',
+                    radius: ['40%', '70%'],
+                    center: ['50%', '50%'],
+                    avoidLabelOverlap: false,
+                    itemStyle: {
+                        borderRadius: 4,
+                        borderColor: '#fff',
+                        borderWidth: 2
+                    },
+                    label: {
+                        show: false
+                    },
+                    emphasis: {
+                        label: {
+                            show: true,
+                            fontSize: 10,
+                            fontWeight: 'bold'
+                        }
+                    },
+                    labelLine: {
+                        show: false
+                    },
+                    data: data.slice(0, 5).map((item, index) => ({
+                        value: item.count || 0,
+                        name: item.reason || item.name || '其他',
+                        itemStyle: { color: colors[index % colors.length] }
+                    }))
+                }]
+            };
+            chart.setOption(option);
+        }
+        
+        function sendFeishuNotification() {
+            if (confirm('确定要发送催办通知吗？')) {
+                fetch('/api/feishu/notify-overdue', { method: 'POST' })
+                    .then(res => res.json())
+                    .then(result => {
+                        alert(result.message || '通知发送成功！');
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        alert('通知发送失败，请稍后重试');
+                    });
+            }
+        }
+        
+        function renderDeptChart(deptStats) {
+            const chart = echarts.init(document.getElementById('dept-chart'));
+
+            const filteredStats = deptStats.filter(d => d.dept && d.dept !== '' && d.dept !== '未分配');
+            const depts = filteredStats.map(d => d.dept);
+            const total = filteredStats.reduce((sum, d) => sum + d.quantity, 0);
+
+            const option = {
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'shadow' },
+                    formatter: (params) => {
+                        let result = `${params[0].name}<br/>`;
+                        let totalQty = 0;
+                        params.forEach(param => {
+                            result += `${param.marker} ${param.seriesName}: ${param.value.toLocaleString()}箱<br/>`;
+                            totalQty += param.value;
+                        });
+                        const percent = total > 0 ? ((totalQty / total) * 100).toFixed(1) : 0;
+                        result += `合计: ${totalQty.toLocaleString()}箱 (${percent}%)`;
+                        return result;
+                    }
+                },
+                legend: {
+                    data: ['严重超期', '一般超期', '即将到期', '正常'],
+                    bottom: '6%',
+                    textStyle: { color: '#64748b', fontSize: 11 }
+                },
+                graphic: [
+                    {
+                        type: 'text',
+                        left: 'center',
+                        bottom: '1%',
+                        style: {
+                            text: '🔴 >15天     🟠 7-15天     🟡 5-7天     🟢 <5天',
+                            fontSize: 10,
+                            fill: '#94a3b8'
+                        }
+                    }
+                ],
+                grid: {
+                    left: '3%',
+                    right: '20%',
+                    bottom: '20%',
+                    top: '5%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: depts,
+                    axisLabel: { color: '#64748b', fontSize: 12 },
+                    axisLine: { lineStyle: { color: '#e2e8f0' } }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLabel: { 
+                        color: '#64748b',
+                        formatter: (value) => {
+                            if (value >= 10000) {
+                                return (value / 10000).toFixed(1) + '万';
+                            }
+                            return value.toLocaleString();
+                        }
+                    },
+                    splitLine: { lineStyle: { color: '#f1f5f9' } }
+                },
+                series: [
+                    {
+                        name: '严重超期',
+                        type: 'bar',
+                        stack: 'total',
+                        barWidth: '40%',
+                        itemStyle: { color: '#ef4444', borderRadius: [4, 4, 0, 0] },
+                        data: filteredStats.map(d => d.critical_overdue || 0)
+                    },
+                    {
+                        name: '一般超期',
+                        type: 'bar',
+                        stack: 'total',
+                        barWidth: '40%',
+                        itemStyle: { color: '#f97316', borderRadius: [4, 4, 0, 0] },
+                        data: filteredStats.map(d => d.normal_overdue || 0)
+                    },
+                    {
+                        name: '即将到期',
+                        type: 'bar',
+                        stack: 'total',
+                        barWidth: '40%',
+                        itemStyle: { color: '#eab308', borderRadius: [4, 4, 0, 0] },
+                        data: filteredStats.map(d => d.upcoming_due || 0)
+                    },
+                    {
+                        name: '正常',
+                        type: 'bar',
+                        stack: 'total',
+                        barWidth: '40%',
+                        itemStyle: { color: '#22c55e', borderRadius: [4, 4, 0, 0] },
+                        data: filteredStats.map(d => d.normal || 0)
+                    }
+                ]
+            };
+
+            chart.setOption(option);
+            
+            chart.on('click', function(params) {
+                if (params.name && params.seriesName) {
+                    showDeptDetail(params.name, params.seriesName);
+                }
+            });
+            
+            window.addEventListener('resize', () => chart.resize());
+        }
+        
+        function renderMonthlyChart(handlerData) {
+            const container = document.getElementById('monthly-chart');
+            if (!container) return;
+            
+            const chart = echarts.init(container);
+            
+            if (!handlerData || handlerData.length === 0) {
+                chart.setOption({
+                    title: {
+                        text: '暂无数据',
+                        left: 'center',
+                        top: 'center',
+                        textStyle: { color: '#94a3b8', fontSize: 14 }
+                    }
+                });
+                return;
+            }
+            
+            const handlers = handlerData.map(d => d.handler);
+            const pendingQty = handlerData.map(d => d.pending_qty);
+            const processingQty = handlerData.map(d => d.processing_qty);
+            const completedQty = handlerData.map(d => d.completed_qty);
+            
+            const option = {
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'shadow' },
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    borderColor: '#e2e8f0',
+                    borderWidth: 1,
+                    padding: [12, 16],
+                    textStyle: { color: '#334155', fontSize: 13 },
+                    formatter: (params) => {
+                        const handlerDataItem = handlerData.find(d => d.handler === params[0].name);
+                        if (!handlerDataItem) return '';
+                        let html = `<div style="font-weight: 600; margin-bottom: 10px; color: #1e293b;">👤 ${handlerDataItem.handler}</div>`;
+                        params.forEach(p => {
+                            if (p.value > 0) {
+                                html += `<div style="display: flex; align-items: center; margin-bottom: 6px;">
+                                    <span style="display: inline-block; width: 10px; height: 10px; background: ${p.color}; border-radius: 2px; margin-right: 8px;"></span>
+                                    <span>${p.seriesName}: ${p.value.toLocaleString()}箱</span>
+                                </div>`;
+                            }
+                        });
+                        html += `<div style="padding-top: 8px; border-top: 1px solid #f1f5f9; font-weight: 600; color: #1e293b;">合计: ${handlerDataItem.total_qty.toLocaleString()}箱</div>`;
+                        return html;
+                    }
+                },
+                legend: {
+                    data: ['待处理', '处理中', '已完成'],
+                    bottom: '2%',
+                    left: 'center',
+                    textStyle: { color: '#64748b', fontSize: 12 },
+                    itemWidth: 16,
+                    itemHeight: 10,
+                    itemGap: 20
+                },
+                grid: {
+                    left: '3%',
+                    right: '3%',
+                    bottom: '18%',
+                    top: '8%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: handlers,
+                    axisLabel: { 
+                        color: '#64748b', 
+                        fontSize: 11,
+                        interval: 0,
+                        rotate: 45,
+                        margin: 12
+                    },
+                    axisLine: { lineStyle: { color: '#e2e8f0' } },
+                    axisTick: { show: false }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: '数量（箱）',
+                    nameTextStyle: { color: '#94a3b8', fontSize: 11, padding: [0, 40, 0, 0] },
+                    axisLabel: { 
+                        color: '#64748b',
+                        fontSize: 11,
+                        formatter: (value) => {
+                            if (value >= 10000) {
+                                return (value / 10000).toFixed(1) + '万';
+                            }
+                            return value.toLocaleString();
+                        }
+                    },
+                    splitLine: { lineStyle: { color: '#f1f5f9', type: 'dashed' } }
+                },
+                series: [
+                    {
+                        name: '待处理',
+                        type: 'bar',
+                        stack: 'total',
+                        barWidth: '50%',
+                        itemStyle: { 
+                            color: '#ef4444',
+                            borderRadius: [4, 4, 0, 0]
+                        },
+                        data: pendingQty
+                    },
+                    {
+                        name: '处理中',
+                        type: 'bar',
+                        stack: 'total',
+                        barWidth: '50%',
+                        itemStyle: { 
+                            color: '#f97316',
+                            borderRadius: [4, 4, 0, 0]
+                        },
+                        data: processingQty
+                    },
+                    {
+                        name: '已完成',
+                        type: 'bar',
+                        stack: 'total',
+                        barWidth: '50%',
+                        itemStyle: { 
+                            color: '#22c55e',
+                            borderRadius: [4, 4, 0, 0]
+                        },
+                        data: completedQty
+                    }
+                ]
+            };
+            
+            chart.setOption(option);
+            
+            window.addEventListener('resize', () => chart.resize());
+        }
+        
+        function loadDashboardMarquee() {
+            fetch('/api/records')
+                .then(res => res.json())
+                .then(data => {
+                    const records = data.records || data;
+                    const now = new Date();
+                    const criticalRecords = records.filter(p => {
+                        if (p.status === '已完成') return false;
+                        const deadline = p.deadline ? new Date(p.deadline) : (p.production_date ? new Date(p.production_date) : null);
+                        if (!deadline) return false;
+                        const daysOverdue = Math.floor((now - deadline) / (1000 * 60 * 60 * 24));
+                        return daysOverdue > 30;
+                    });
+                    
+                    if (criticalRecords.length > 0) {
+                        const marqueeContainer = document.getElementById('dashboard-marquee');
+                        const marqueeContent = document.getElementById('dashboard-marquee-content');
+                        if (marqueeContainer && marqueeContent) {
+                            marqueeContainer.style.display = 'block';
+                            const content = criticalRecords.map(p => {
+                                const deadline = p.deadline ? new Date(p.deadline) : new Date(p.production_date);
+                                const days = Math.floor((now - deadline) / (1000 * 60 * 60 * 24));
+                                const handler = p.handler_name || p.handle_dept || '未分配';
+                                return `【${p.product_name}】超期${days}天 · 数量:${p.quantity}箱 · 处理人:${handler}`;
+                            }).join(' || ');
+                            marqueeContent.textContent = content;
+                        }
+                    }
+                })
+                .catch(err => {
+                    console.error('Failed to load marquee:', err);
+                });
+        }
+        
+        function showDeptDetail(dept, urgency) {
+            const overlay = document.getElementById('modalOverlay');
+            const header = document.getElementById('modalHeader');
+            const title = document.getElementById('modalTitle');
+            const list = document.getElementById('detailList');
+            
+            header.className = 'modal-header dept';
+            const titleText = urgency ? dept + ' - ' + urgency : dept + ' - 项目明细';
+            title.textContent = titleText;
+            
+            list.innerHTML = '<li style="text-align:center;color:#94a3b8;">加载中...</li>';
+            
+            let url = '/api/dashboard/dept-records?dept=' + encodeURIComponent(dept);
+            if (urgency) {
+                url += '&urgency=' + encodeURIComponent(urgency);
+            }
+            fetch(url)
+                .then(res => res.json())
+                .then(result => {
+                    list.innerHTML = '';
+                    if (result.records && result.records.length > 0) {
+                        result.records.forEach(item => {
+                            const li = document.createElement('li');
+                            li.className = 'detail-item';
+                            li.innerHTML = `
+                                <div class="detail-name">${item.product_name || '未知产品'}</div>
+                                <div class="detail-stats">
+                                    <div class="detail-records"><strong>${item.quantity}</strong> 箱</div>
+                                    <div class="detail-quantity">${item.deadline || '-'}</div>
+                                </div>
+                            `;
+                            list.appendChild(li);
+                        });
+                    } else {
+                        list.innerHTML = '<li style="text-align:center;color:#94a3b8;">暂无数据</li>';
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    list.innerHTML = '<li style="text-align:center;color:#ef4444;">加载失败</li>';
+                });
+            
+            overlay.classList.add('active');
+        }
+        
+        function renderPieChart(data) {
+            const chart = echarts.init(document.getElementById('pie-chart'));
+            
+            const reasonColors = {
+                '返工': '#ef4444',
+                '品质追踪': '#f59e0b',
+                '调配液超时': '#8b5cf6',
+                '瓶标不良': '#ec4899',
+                '大字喷印不良': '#06b6d4',
+                '新品调试': '#10b981',
+                '新品调试（软瓶）': '#10b981',
+                '生产中追踪': '#3b82f6',
+                '生产追踪': '#10b981',
+                '结线追踪': '#f59e0b',
+                '开线追踪': '#3b82f6',
+                '卡伤': '#ef4444',
+                'CIP周期超时': '#8b5cf6',
+                'B侧花边': '#ec4899',
+                '其他': '#94a3b8'
+            };
+            
+            let reasonData = [];
+            console.log('Pie chart data:', data);
+            if (data.reason_distribution && data.reason_distribution.length > 0) {
+                reasonData = data.reason_distribution.map(item => ({
+                    value: item.count,
+                    name: item.reason,
+                    itemStyle: { color: reasonColors[item.reason] || '#64748b' }
+                }));
+            }
+            console.log('Processed reasonData:', reasonData);
+
+            const option = {
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{b}: {c}箱 ({d}%)'
+                },
+                legend: {
+                    orient: 'vertical',
+                    right: '5%',
+                    top: 'center',
+                    textStyle: { color: '#64748b', fontSize: 11 }
+                },
+                series: [{
+                    name: '管制原因',
+                    type: 'pie',
+                    radius: ['45%', '70%'],
+                    center: ['35%', '50%'],
+                    avoidLabelOverlap: false,
+                    itemStyle: {
+                        borderRadius: 8,
+                        borderColor: '#fff',
+                        borderWidth: 2
+                    },
+                    label: {
+                        show: true,
+                        position: 'outside',
+                        formatter: '{b}\n{c}箱 ({d}%)',
+                        fontSize: 11,
+                        color: '#64748b',
+                        lineHeight: 16
+                    },
+                    labelLine: {
+                        show: true,
+                        length: 15,
+                        length2: 10
+                    },
+                    emphasis: {
+                        label: {
+                            show: true,
+                            fontSize: 14,
+                            fontWeight: 'bold'
+                        }
+                    },
+                    data: reasonData
+                }]
+            };
+
+            chart.setOption(option);
+            
+            chart.on('click', function(params) {
+                if (params.name && params.name !== '其他') {
+                    showReasonDetail(params.name);
+                }
+            });
+            
+            window.addEventListener('resize', () => chart.resize());
+        }
+        
+        function showReasonDetail(reason) {
+            const overlay = document.getElementById('modalOverlay');
+            const header = document.getElementById('modalHeader');
+            const title = document.getElementById('modalTitle');
+            const list = document.getElementById('detailList');
+            
+            header.className = 'modal-header category';
+            title.textContent = reason + ' - 项目明细';
+            
+            list.innerHTML = '<li style="text-align:center;color:#94a3b8;">加载中...</li>';
+            
+            fetch('/api/dashboard/reason-records?reason=' + encodeURIComponent(reason))
+                .then(res => res.json())
+                .then(result => {
+                    list.innerHTML = '';
+                    if (result.records && result.records.length > 0) {
+                        result.records.forEach(item => {
+                            const li = document.createElement('li');
+                            li.className = 'detail-item';
+                            li.innerHTML = `
+                                <div class="detail-name">${item.product_name || '未知产品'}</div>
+                                <div class="detail-stats">
+                                    <div class="detail-records"><strong>${item.quantity}</strong> 箱</div>
+                                    <div class="detail-quantity">${item.handle_dept || '未分配'}</div>
+                                </div>
+                            `;
+                            list.appendChild(li);
+                        });
+                    } else {
+                        list.innerHTML = '<li style="text-align:center;color:#94a3b8;">暂无数据</li>';
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    list.innerHTML = '<li style="text-align:center;color:#ef4444;">加载失败</li>';
+                });
+            
+            overlay.classList.add('active');
+        }
+        
+        function renderLineChart(data) {
+            const chart = echarts.init(document.getElementById('line-chart'));
+
+            const today = new Date();
+            const days = [];
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date(today);
+                date.setDate(date.getDate() - i);
+                days.push((date.getMonth() + 1) + '/' + date.getDate());
+            }
+            
+            const dailyStats = data.last_7_days || [];
+            const values = dailyStats.map(d => d.rate || 0);
+
+            const lastThreeValues = values.slice(-3);
+            const avgSlope = lastThreeValues.length >= 2 
+                ? (lastThreeValues[lastThreeValues.length - 1] - lastThreeValues[0]) / (lastThreeValues.length - 1)
+                : 0;
+            const predictedValue = values.length > 0 ? values[values.length - 1] + avgSlope : 0;
+            const clampedPredicted = Math.max(0, Math.min(100, predictedValue));
+
+            const datesWithYear = [];
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date(today);
+                date.setDate(date.getDate() - i);
+                datesWithYear.push(date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0'));
+            }
+
+            const option = {
+                tooltip: {
+                    trigger: 'axis',
+                    formatter: (params) => {
+                        const dateIndex = params[0].dataIndex;
+                        const dailyData = dailyStats[dateIndex];
+                        if (!dailyData) {
+                            return `${params[0].axisValue}<br/>📊 处理率: 0%<br/>📦 已处理: 0箱 | 待处理: 0箱`;
+                        }
+                        let result = `📅 ${datesWithYear[dateIndex]}<br/>`;
+                        result += `📊 处理率: ${dailyData.rate || 0}%<br/>`;
+                        result += `📦 已处理: ${(dailyData.completed_qty || 0).toLocaleString()}箱 | 待处理: ${(dailyData.pending_qty || 0).toLocaleString()}箱<br/>`;
+                        if (dailyData.top_products && dailyData.top_products.length > 0) {
+                            result += '🥤 品类TOP3处理率:<br/>';
+                            dailyData.top_products.slice(0, 3).forEach((product, idx) => {
+                                result += `  ${idx + 1}. ${product.name}: ${product.rate}%<br/>`;
+                            });
+                        }
+                        return result;
+                    },
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    borderColor: '#334155',
+                    borderWidth: 1,
+                    padding: [12, 16],
+                    textStyle: { color: '#f1f5f9' }
+                },
+                grid: {
+                    left: '3%',
+                    right: '10%',
+                    bottom: '3%',
+                    top: '15%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    boundaryGap: false,
+                    data: days,
+                    axisLabel: { color: '#64748b' },
+                    axisLine: { lineStyle: { color: '#e2e8f0' } }
+                },
+                yAxis: {
+                    type: 'value',
+                    min: 0,
+                    max: 100,
+                    interval: 20,
+                    axisLabel: {
+                        color: '#64748b',
+                        formatter: '{value}%'
+                    },
+                    splitLine: { lineStyle: { color: '#f1f5f9' } },
+                    axisTick: { show: true }
+                },
+                series: [{
+                    name: '达标区',
+                    type: 'line',
+                    data: [100, 100, 100, 100, 100, 100, 100, null],
+                    lineStyle: { show: false },
+                    itemStyle: { show: false },
+                    symbol: 'none',
+                    markArea: {
+                        silent: true,
+                        itemStyle: {
+                            color: 'rgba(34, 197, 94, 0.1)'
+                        },
+                        data: [
+                            [
+                                { yAxis: 60, xAxis: 0 },
+                                { yAxis: 100, xAxis: 6 }
+                            ]
+                        ],
+                        label: {
+                            show: true,
+                            position: 'insideTop',
+                            formatter: '达标区',
+                            color: '#22c55e',
+                            fontWeight: 'bold',
+                            fontSize: 14
+                        }
+                    }
+                }, {
+                    name: '目标处理率',
+                    type: 'line',
+                    data: [60, 60, 60, 60, 60, 60, 60, null],
+                    lineStyle: {
+                        type: 'dashed',
+                        color: '#22c55e',
+                        width: 2
+                    },
+                    itemStyle: { color: '#22c55e' },
+                    symbol: 'none',
+                    label: {
+                        show: true,
+                        position: 'end',
+                        formatter: '60%',
+                        color: '#22c55e',
+                        fontWeight: 'bold',
+                        fontSize: 12
+                    },
+                    tooltip: {
+                        formatter: '目标处理率: 60%'
+                    }
+                }, {
+                    name: '趋势预测',
+                    type: 'line',
+                    data: [null, null, null, null, null, null, null, clampedPredicted],
+                    lineStyle: {
+                        type: 'dashed',
+                        color: '#94a3b8',
+                        width: 2,
+                        opacity: 0.6
+                    },
+                    itemStyle: { color: '#94a3b8' },
+                    symbol: 'circle',
+                    symbolSize: 6,
+                    label: {
+                        show: true,
+                        position: 'end',
+                        formatter: `${clampedPredicted.toFixed(1)}%`,
+                        color: '#94a3b8',
+                        fontSize: 11
+                    }
+                }, {
+                    name: '处理率',
+                    type: 'line',
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 8,
+                    lineStyle: {
+                        color: '#3b82f6',
+                        width: 3
+                    },
+                    itemStyle: {
+                        color: '#3b82f6',
+                        borderColor: '#fff',
+                        borderWidth: 2
+                    },
+                    areaStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: 'rgba(59, 130, 246, 0.3)' },
+                            { offset: 1, color: 'rgba(59, 130, 246, 0.05)' }
+                        ])
+                    },
+                    data: values
+                }]
+            };
+
+            chart.setOption(option);
+            window.addEventListener('resize', () => chart.resize());
+        }
+        
+        function getRiskLevel(item) {
+            const rate = item.rate || 0;
+            const pending = item.pending_qty || 0;
+            
+            if (rate === 0 && pending > 10000) {
+                return { level: 'critical', label: '危急', class: 'critical' };
+            } else if (rate < 30 && pending > 5000) {
+                return { level: 'serious', label: '严重', class: 'serious' };
+            } else if (rate >= 30 && rate <= 60) {
+                return { level: 'warning', label: '关注', class: 'warning' };
+            } else {
+                return { level: 'normal', label: '正常', class: 'normal' };
+            }
+        }
+        
+        function shortenProductName(name) {
+            if (!name) return '未知';
+            
+            let result = name;
+            if (result.startsWith('成品-')) {
+                result = result.substring(3);
+            }
+            
+            return result;
+        }
+        
+        function loadProductTable() {
+            fetch('/api/statistics')
+                .then(res => res.json())
+                .then(data => {
+                    const stats = data.product_stats || [];
+                    const container = document.getElementById('product-table');
+                    
+                    let html = `
+                        <table class="product-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:40px;">排名</th>
+                                    <th style="width:200px;">规格+口味</th>
+                                    <th style="width:80px;">待处理</th>
+                                    <th style="width:80px;">已处理</th>
+                                    <th style="width:70px;">超期</th>
+                                    <th style="width:80px;">等待天数</th>
+                                    <th style="width:60px;">处理率</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+                    
+                    const topStats = stats.slice(0, 5);
+                    topStats.forEach((item, index) => {
+                        const displayName = item.spec_flavor || item.product_name || '未知';
+                        const productNames = item.product_names || '';
+                        
+                        html += `
+                            <tr style="cursor: pointer;" onclick="showProductDetail('${encodeURIComponent(productNames)}', '${encodeURIComponent(displayName)}')">
+                                <td><span class="rank-badge ${index < 3 ? 'top3' : ''}">${index + 1}</span></td>
+                                <td title="${displayName}">${displayName}</td>
+                                <td>${(item.pending_qty || 0).toLocaleString()}</td>
+                                <td>${(item.handled_qty || 0).toLocaleString()}</td>
+                                <td>${(item.overdue_qty || 0).toLocaleString()}</td>
+                                <td>${item.avg_wait_days || 0}天</td>
+                                <td>${item.rate}%</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    if (stats.length === 0) {
+                        html += `<tr><td colspan="7" style="text-align:center;color:#94a3b8;">暂无数据</td></tr>`;
+                    }
+                    
+                    html += '</tbody></table>';
+                    container.innerHTML = html;
+                })
+                .catch(err => {
+                    console.error(err);
+                    const container = document.getElementById('product-table');
+                    container.innerHTML = '<p style="text-align:center;color:#94a3b8;">加载失败</p>';
+                });
+        }
+        
+        function viewProductDetail(productName) {
+            fetch('/api/statistics')
+                .then(res => res.json())
+                .then(data => {
+                    const stats = data.product_stats || [];
+                    const product = stats.find(p => p.product_name === decodeURIComponent(productName));
+                    
+                    if (product) {
+                        document.getElementById('modalTitle').textContent = `产品详情: ${product.product_name}`;
+                        const list = document.getElementById('detailList');
+                        list.innerHTML = `
+                            <li class="detail-item">
+                                <div class="detail-name">待处理数量</div>
+                                <div class="detail-stats">${product.pending_qty.toLocaleString()} 箱</div>
+                            </li>
+                            <li class="detail-item">
+                                <div class="detail-name">已处理数量</div>
+                                <div class="detail-stats">${product.handled_qty.toLocaleString()} 箱</div>
+                            </li>
+                            <li class="detail-item">
+                                <div class="detail-name">超期数量</div>
+                                <div class="detail-stats">${(product.overdue_qty || 0).toLocaleString()} 箱</div>
+                            </li>
+                            <li class="detail-item">
+                                <div class="detail-name">平均等待天数</div>
+                                <div class="detail-stats">${product.avg_wait_days || 0} 天</div>
+                            </li>
+                            <li class="detail-item">
+                                <div class="detail-name">处理率</div>
+                                <div class="detail-stats">${product.rate}%</div>
+                            </li>
+                        `;
+                        document.getElementById('modalOverlay').classList.add('active');
+                    }
+                });
+        }
+        
+        function showProductDetail(productNames, displayName) {
+            const overlay = document.getElementById('modalOverlay');
+            const header = document.getElementById('modalHeader');
+            const title = document.getElementById('modalTitle');
+            const list = document.getElementById('detailList');
+            
+            header.className = 'modal-header product';
+            title.textContent = decodeURIComponent(displayName) + ' - 产品明细';
+            
+            list.innerHTML = '<li style="text-align:center;color:#94a3b8;">加载中...</li>';
+            
+            const productList = decodeURIComponent(productNames).split(';').filter(p => p.trim());
+            
+            if (productList.length === 0) {
+                list.innerHTML = '<li style="text-align:center;color:#94a3b8;">暂无产品信息</li>';
+                overlay.classList.add('active');
+                return;
+            }
+            
+            const recordsContainer = document.createElement('div');
+            recordsContainer.style.maxHeight = '400px';
+            recordsContainer.style.overflowY = 'auto';
+            
+            let allRecordsLoaded = 0;
+            const totalProducts = productList.length;
+            
+            productList.forEach(productName => {
+                fetch('/api/dashboard/product-records?product_name=' + encodeURIComponent(productName))
+                    .then(res => res.json())
+                    .then(result => {
+                        if (result.records && result.records.length > 0) {
+                            const productSection = document.createElement('div');
+                            productSection.style.borderBottom = '1px dashed #e5e7eb';
+                            productSection.style.padding = '12px 0';
+                            
+                            const productHeader = document.createElement('div');
+                            productHeader.style.fontWeight = 'bold';
+                            productHeader.style.color = '#1e40af';
+                            productHeader.style.marginBottom = '8px';
+                            productHeader.textContent = productName;
+                            productSection.appendChild(productHeader);
+                            
+                            result.records.forEach(record => {
+                                const itemDiv = document.createElement('div');
+                                itemDiv.style.display = 'flex';
+                                itemDiv.style.justifyContent = 'space-between';
+                                itemDiv.style.padding = '4px 8px';
+                                itemDiv.style.background = '#f9fafb';
+                                itemDiv.style.marginBottom = '4px';
+                                itemDiv.style.borderRadius = '4px';
+                                
+                                const leftSpan = document.createElement('span');
+                                leftSpan.textContent = `生产日期: ${record.production_date}`;
+                                itemDiv.appendChild(leftSpan);
+                                
+                                const rightSpan = document.createElement('span');
+                                rightSpan.textContent = `${record.quantity}箱 | ${record.status} | ${record.handle_dept || '-'}`;
+                                itemDiv.appendChild(rightSpan);
+                                
+                                productSection.appendChild(itemDiv);
+                            });
+                            
+                            recordsContainer.appendChild(productSection);
+                        }
+                        
+                        allRecordsLoaded++;
+                        if (allRecordsLoaded === totalProducts) {
+                            if (recordsContainer.children.length === 0) {
+                                list.innerHTML = '<li style="text-align:center;color:#94a3b8;">暂无台账记录</li>';
+                            } else {
+                                list.innerHTML = '';
+                                list.appendChild(recordsContainer);
+                            }
+                            overlay.classList.add('active');
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        allRecordsLoaded++;
+                        if (allRecordsLoaded === totalProducts) {
+                            list.innerHTML = '<li style="text-align:center;color:#ef4444;">加载失败</li>';
+                            overlay.classList.add('active');
+                        }
+                    });
+            });
+        }
+        
+        function notifyProduct(productName) {
+            if (confirm(`确定要发送产品「${decodeURIComponent(productName)}」的催办通知吗？`)) {
+                alert(`催办通知已发送！产品: ${decodeURIComponent(productName)}`);
+            }
+        }
+        
+        function setCurrentDate() {
+            const now = new Date();
+            const options = {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                weekday: 'long'
+            };
+            document.getElementById('current-date').textContent = now.toLocaleDateString('zh-CN', options);
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            setCurrentDate();
+            loadStatistics();
+            loadDashboardMarquee();
+        });
+        
+        function forceRefresh() {
+            localStorage.clear();
+            sessionStorage.clear();
+            window.location.reload(true);
+        }
+        
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+    
+    <div class="modal-overlay" id="scanModalOverlay" onclick="closeModal(event)">
+        <div class="modal" onclick="event.stopPropagation()" style="max-width: 450px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);">
+                <div class="modal-title">📷 扫码新增记录</div>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="width: 200px; height: 200px; margin: 0 auto; background: #f8fafc; border-radius: 16px; border: 2px dashed #cbd5e1; display: flex; align-items: center; justify-content: center;">
+                        <span style="font-size: 48px;">📱</span>
+                    </div>
+                    <p style="margin-top: 16px; color: #64748b; font-size: 14px;">扫描二维码或手动输入</p>
+                </div>
+                
+                <input 
+                    type="text" 
+                    id="scan-input" 
+                    placeholder="请输入扫码内容或产品信息..." 
+                    style="width: 100%; padding: 12px 16px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; margin-bottom: 16px;"
+                />
+                
+                <div style="display: flex; gap: 12px;">
+                    <button 
+                        onclick="closeModal()" 
+                        style="flex: 1; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: white; color: #64748b; cursor: pointer;"
+                    >
+                        取消
+                    </button>
+                    <button 
+                        onclick="submitScanCode()" 
+                        style="flex: 2; padding: 12px; border: none; border-radius: 8px; background: #3b82f6; color: white; cursor: pointer; font-weight: 500;"
+                    >
+                        确认添加
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
